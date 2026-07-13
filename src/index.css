@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --color-obsidian: #0C0C0E;
+  --color-slate-base: #161619;
+  --color-slate-panel: #2D2D33;
+  --color-emerald-neon: #00AD7C;
+  --color-violet-neon: #6366F1;
+  --color-amber-neon: #F59E0B;
+  --color-cyan-neon: #06B6D4;
+  --color-text-main: #E0E0E6;
+  --color-text-muted: #94A3B8;
+  --color-bg-code: #08080A;
+  --color-bg-code-alt: #0A0A0B;
+  
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+body.light-mode {
+  --color-obsidian: #F6F4EB;
+  --color-slate-base: #FFFFFF;
+  --color-slate-panel: #EAE6DB;
+  --color-emerald-neon: #218359;
+  --color-violet-neon: #4F46E5;
+  --color-amber-neon: #B45309;
+  --color-cyan-neon: #0891B2;
+  --color-text-main: #111111;
+  --color-text-muted: #666666;
+  --color-bg-code: #EAE6DB;
+  --color-bg-code-alt: #F6F4EB;
+  
+  --font-heading: "Playfair Display", Georgia, serif;
+}
+
+@theme {
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+  background-color: var(--color-obsidian);
+  color: var(--color-text-main);
+  overflow-x: hidden;
+}
+
+.clip-hex {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.opendyslexic-mode {
+  /* Simulating OpenDyslexic using a standard highly legible fallback for the preview if the font isn't installed locally */
+  font-family: 'OpenDyslexic', 'Comic Sans MS', sans-serif;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+}
+
+/* Custom Scrollbar for Obsidian Theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-obsidian);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-slate-panel);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-violet-neon);
+}
