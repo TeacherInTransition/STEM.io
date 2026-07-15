@@ -1,0 +1,77 @@
+/* LedgerSystem.css - The "Ledger & Proof" Design System */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.index-page {
+  background-color: var(--paper) !important;
+  background-image: 
+    linear-gradient(var(--line-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-2) 1px, transparent 1px) !important;
+  background-size: 44px 44px !important;
+  background-position: center top !important;
+  color: var(--ink) !important;
+}
+
+/* Typography */
+.ledger-title {
+  font-family: 'Fraunces', serif;
+  letter-spacing: -0.02em;
+}
+
+.highlight-made {
+  font-style: italic;
+  color: var(--amber); /* Premium Amber */
+}
+
+.ledger-btn, .ledger-nav {
+  font-family: 'Inter', sans-serif;
+}
+
+.stemios-wallet {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--amber);
+}
+
+/* Interactive Components */
+.stemios-hud {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper); /* Fallback */
+  background: color-mix(in srgb, var(--paper) 85%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.course-card {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.course-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--amber);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  z-index: 20;
+}
+
+.course-card:hover::before {
+  transform: scaleX(1);
+}

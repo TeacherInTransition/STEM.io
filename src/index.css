@@ -2,46 +2,138 @@
 @import "tailwindcss";
 
 :root {
-  --color-obsidian: #0C0C0E;
-  --color-slate-base: #161619;
-  --color-slate-panel: #2D2D33;
-  --color-emerald-neon: #00AD7C;
-  --color-violet-neon: #6366F1;
-  --color-amber-neon: #F59E0B;
-  --color-cyan-neon: #06B6D4;
-  --color-text-main: #E0E0E6;
-  --color-text-muted: #94A3B8;
-  --color-bg-code: #08080A;
-  --color-bg-code-alt: #0A0A0B;
+  /* Dark mode (Ledger & Proof) accessible palette */
+  --paper: #18181A;
+  --paper-2: #222224;
+  --surface: #27272A;
+  --ink: #E4E4E7;
+  --ink-soft: #A1A1AA;
+  --muted: #71717A;
+  --line: rgba(228, 228, 231, 0.12);
+  --line-2: rgba(228, 228, 231, 0.06);
+  --amber: #F59E0B;
+  --amber-bright: #FBBF24;
+  --amber-deep: #D97706;
+  --amber-tint: rgba(245, 158, 11, 0.15);
+  --amber-tint-2: rgba(245, 158, 11, 0.3);
+  --rose: #F43F5E;
+  --green: #10B981;
+  --red: #EF4444;
+  
+  --shadow-base: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
   
   --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
   --font-heading: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--line-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-2) 1px, transparent 1px) !important;
+  background-size: 44px 44px !important;
+  background-position: center top !important;
+  color: var(--ink);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 body.light-mode {
-  --color-obsidian: #F6F4EB;
-  --color-slate-base: #FFFFFF;
-  --color-slate-panel: #EAE6DB;
-  --color-emerald-neon: #218359;
-  --color-violet-neon: #4F46E5;
-  --color-amber-neon: #B45309;
-  --color-cyan-neon: #0891B2;
-  --color-text-main: #111111;
-  --color-text-muted: #666666;
-  --color-bg-code: #EAE6DB;
-  --color-bg-code-alt: #F6F4EB;
+  --paper: #FBF8F2;
+  --paper-2: #F4EEE3;
+  --surface: #FFFFFF;
+  --ink: #1C1814;
+  --ink-soft: #3A332C;
+  --muted: #6B6259;
+  --line: rgba(28,24,20,.12);
+  --line-2: rgba(28,24,20,.05);
+  --amber: #B45309;
+  --amber-bright: #D97706;
+  --amber-deep: #8F3F08;
+  --amber-tint: rgba(180,83,9,.08);
+  --amber-tint-2: rgba(180,83,9,.16);
+  --rose: #B4456E;
+  --green: #1F8A55;
+  --red: #B0473C;
+  
+  --shadow-base: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   
   --font-heading: "Playfair Display", Georgia, serif;
+
+  background-color: var(--paper) !important;
+  background-image:
+    linear-gradient(var(--line-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-2) 1px, transparent 1px) !important;
+  background-size: 44px 44px !important;
+  background-position: center top !important;
+  color: var(--ink) !important;
+}
+
+/* Force light mode overrides on hardcoded cyberpunk dark colors */
+body.light-mode [class*="bg-[#121214]"] { background-color: transparent !important; }
+body.light-mode [class*="bg-[#161619]"] { background-color: var(--surface) !important; }
+body.light-mode [class*="bg-[#0A0A0B]"] { background-color: var(--paper-2) !important; }
+body.light-mode [class*="bg-[#22252a]"] { background-color: var(--line) !important; }
+
+body.light-mode [class*="border-[#22252a]"] { border-color: var(--line) !important; }
+
+body.light-mode [class*="text-[#E0E0E6]"] { color: var(--ink) !important; }
+body.light-mode [class*="text-[#94A3B8]"] { color: var(--muted) !important; }
+
+/* Adapting Neon accents to Warm Amber/Ink */
+body.light-mode [class*="text-[#00FFFF]"],
+body.light-mode [class*="text-[#6366F1]"],
+body.light-mode [class*="text-[#FF9900]"],
+body.light-mode [class*="text-[#F59E0B]"],
+body.light-mode [class*="text-[#39FF14]"],
+body.light-mode [class*="text-[#00AD7C]"],
+body.light-mode [class*="text-[#FF00FF]"] { 
+  color: var(--amber) !important; 
+}
+
+body.light-mode [class*="border-[#00FFFF]"],
+body.light-mode [class*="border-[#6366F1]"],
+body.light-mode [class*="border-[#FF9900]"],
+body.light-mode [class*="border-[#F59E0B]"],
+body.light-mode [class*="border-[#39FF14]"],
+body.light-mode [class*="border-[#00AD7C]"],
+body.light-mode [class*="border-[#FF00FF]"] { 
+  border-color: var(--amber) !important; 
+}
+
+body.light-mode [class*="bg-[#00FFFF]"],
+body.light-mode [class*="bg-[#6366F1]"],
+body.light-mode [class*="bg-[#FF9900]"],
+body.light-mode [class*="bg-[#F59E0B]"],
+body.light-mode [class*="bg-[#39FF14]"],
+body.light-mode [class*="bg-[#00AD7C]"],
+body.light-mode [class*="bg-[#FF00FF]"] { 
+  background-color: var(--amber) !important; 
+  color: var(--paper) !important;
+}
+
+body.light-mode [class*="bg-[#6366F1]/10"],
+body.light-mode [class*="bg-[#6366F1]/15"],
+body.light-mode [class*="bg-[#00FFFF]/10"],
+body.light-mode [class*="bg-[#F59E0B]/10"],
+body.light-mode [class*="bg-[#00AD7C]/10"] {
+  background-color: var(--amber-tint) !important;
+}
+
+body.light-mode .text-transparent.bg-clip-text {
+  background: none !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  color: var(--ink) !important;
+}
+
+body.light-mode [class*="shadow-"] {
+  box-shadow: none !important;
 }
 
 @theme {
   --font-mono: "JetBrains Mono", monospace;
-}
-
-body {
-  background-color: var(--color-obsidian);
-  color: var(--color-text-main);
-  overflow-x: hidden;
 }
 
 .clip-hex {
@@ -56,6 +148,13 @@ body {
 }
 
 /* Custom Scrollbar for Obsidian Theme */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 ::-webkit-scrollbar {
   width: 8px;
 }

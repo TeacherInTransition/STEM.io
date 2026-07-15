@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import TranslationSidebar from './TranslationSidebar';
-import { Play, Terminal, Check, Shuffle, CheckCircle2 } from 'lucide-react';
+import { Play, Terminal, Check, Shuffle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 const CYBERPUNK_COLORS = [
   '#00FF00', // 1 Neon Green
@@ -26,9 +26,36 @@ const CYBERPUNK_COLORS = [
   '#FF6347', // 20 Tomato
 ];
 
-export default function StudentPortal({ user }: { user: User }) {
+export default function StudentPortal({ user, onBack }: { user: User, onBack?: () => void }) {
   const [isTranslationOpen, setTranslationOpen] = useState(false);
   const [activeNode, setActiveNode] = useState(2);
+  const [promptInput, setPromptInput] = useState("Role: Expert Python Developer\nTask: Explain how a 'for loop' works using a simple real-world analogy. Keep it under 3 sentences.\nAudience: 10-year-old student.");
+  const [aiOutput, setAiOutput] = useState("Imagine you have a big box of 100 colorful LEGO blocks, and you want to look at every single one. A 'for loop' is like a set of instructions that says, \"Pick up a block, look at it, put it in the finished pile, and repeat this *for* every block in the box.\" It does the exact same action repeatedly until it reaches the end of the items you told it to check!");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const runSimulation = async () => {
+    setIsLoading(true);
+    setAiOutput("Simulating node response...");
+    
+    try {
+      const response = await fetch("/api/gemini/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptInput }),
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        setAiOutput(data.result);
+      } else {
+        setAiOutput(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setAiOutput("Error communicating with server.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <article className="flex-1 grid grid-cols-[80px_1fr_280px] overflow-hidden relative">
@@ -71,6 +98,15 @@ export default function StudentPortal({ user }: { user: User }) {
           {/* Workspace Toolbar */}
           <header className="px-5 py-3 border-b border-slate-panel flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
+              {onBack && (
+                <button 
+                  onClick={onBack}
+                  className="mr-2 text-text-muted hover:text-white transition-colors"
+                  title="Back to Arcade"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+              )}
               <span className="font-bold flex items-center gap-2" style={{ color: CYBERPUNK_COLORS[activeNode - 1] }}><Terminal size={18} /> NODE {activeNode.toString().padStart(2, '0')}:</span>
               <span className="text-text-main font-semibold">Prompt Sandbox Editor</span>
             </div>
@@ -79,32 +115,36 @@ export default function StudentPortal({ user }: { user: User }) {
           {/* Interactive Editor Area */}
           <div className="flex-1 p-[30px] flex flex-col gap-5 overflow-y-auto">
             <div className="flex-1 grid grid-rows-2 gap-4">
-              <div className="bg-bg-code rounded-lg border border-slate-panel p-4 font-mono text-sm relative">
-                <div className="absolute top-0 left-0 bg-slate-panel px-3 py-1 rounded-br-lg text-xs text-text-muted">Input Prompt</div>
-                <div className="mt-6 text-emerald-neon leading-relaxed">
-                  <span className="text-violet-neon">Role:</span> Expert Python Developer<br/><br/>
-                  <span className="text-violet-neon">Task:</span> Explain how a 'for loop' works using a simple real-world analogy. Keep it under 3 sentences.<br/><br/>
-                  <span className="text-violet-neon">Audience:</span> 10-year-old student.
-                </div>
+              <div className="bg-bg-code rounded-lg border border-slate-panel p-4 font-mono text-sm relative flex flex-col">
+                <div className="absolute top-0 left-0 bg-slate-panel px-3 py-1 rounded-br-lg text-xs text-text-muted z-10">Input Prompt</div>
+                <textarea 
+                  className="mt-6 flex-1 w-full bg-transparent border-none text-emerald-neon leading-relaxed resize-none focus:outline-none placeholder-emerald-neon/50"
+                  value={promptInput}
+                  onChange={(e) => setPromptInput(e.target.value)}
+                  placeholder="Enter your prompt here..."
+                />
               </div>
-              <div className="bg-bg-code-alt rounded-lg border border-slate-panel p-4 font-mono text-sm relative shadow-inner">
+              <div className="bg-bg-code-alt rounded-lg border border-slate-panel p-4 font-mono text-sm relative shadow-inner overflow-y-auto">
                 <div className="absolute top-0 left-0 bg-violet-neon/20 px-3 py-1 rounded-br-lg text-xs text-violet-neon border-b border-r border-violet-neon/30">AI Output</div>
-                <div className="mt-6 text-text-muted leading-relaxed">
-                  Imagine you have a big box of 100 colorful LEGO blocks, and you want to look at every single one. A 'for loop' is like a set of instructions that says, "Pick up a block, look at it, put it in the finished pile, and repeat this *for* every block in the box." It does the exact same action repeatedly until it reaches the end of the items you told it to check!
+                <div className="mt-6 text-text-muted leading-relaxed whitespace-pre-wrap">
+                  {aiOutput}
                 </div>
               </div>
             </div>
             
             <div className="flex justify-end mt-4">
               <button 
-                className="text-white border-none py-3 px-6 rounded-md font-bold uppercase cursor-pointer flex items-center gap-2 transition-all hover:scale-105"
+                onClick={runSimulation}
+                disabled={isLoading}
+                className={`text-white border-none py-3 px-6 rounded-md font-bold uppercase cursor-pointer flex items-center gap-2 transition-all ${!isLoading && 'hover:scale-105'}`}
                 style={{ 
                   backgroundColor: CYBERPUNK_COLORS[activeNode - 1],
                   color: '#000',
-                  boxShadow: `0 0 15px ${CYBERPUNK_COLORS[activeNode - 1]}80`
+                  boxShadow: `0 0 15px ${CYBERPUNK_COLORS[activeNode - 1]}80`,
+                  opacity: isLoading ? 0.7 : 1
                 }}
               >
-                <Play size={18} /> RUN SIMULATION
+                {isLoading ? <span className="animate-pulse">RUNNING...</span> : <><Play size={18} /> RUN SIMULATION</>}
               </button>
             </div>
           </div>

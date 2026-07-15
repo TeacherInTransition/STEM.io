@@ -1,11 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { RefreshCw, Link as LinkIcon, Users, CheckCircle, BrainCircuit, Code, ShieldAlert } from 'lucide-react';
 import WorkspacePanel from './WorkspacePanel';
+import { db } from '../lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function TeacherDashboard({ user, accessToken }: { user: User; accessToken?: string | null }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [published, setPublished] = useState<Record<string, boolean>>({});
+  const [students, setStudents] = useState<User[]>([]);
+
+  useEffect(() => {
+    // Fetch students from Firestore
+    const q = query(collection(db, 'users'), where('role', '==', 'student'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const studentList: User[] = [];
+      snap.forEach(doc => {
+        studentList.push({ id: doc.id, ...doc.data() } as User);
+      });
+      setStudents(studentList);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSync = () => {
     setIsSyncing(true);
@@ -76,7 +93,7 @@ export default function TeacherDashboard({ user, accessToken }: { user: User; ac
                 <Users size={16} className="text-amber-neon" /> 
                 Student Competency Matrix
               </h3>
-              <span className="text-xs font-mono text-text-muted bg-slate-panel px-2 py-1 rounded">24 ACTIVE</span>
+              <span className="text-xs font-mono text-text-muted bg-slate-panel px-2 py-1 rounded">{students.length} ACTIVE</span>
             </header>
 
             <div className="overflow-x-auto">
@@ -84,39 +101,48 @@ export default function TeacherDashboard({ user, accessToken }: { user: User; ac
                 <thead>
                   <tr className="bg-slate-panel/30 text-[10px] uppercase tracking-widest text-text-muted">
                     <th className="p-4 font-semibold border-b border-slate-panel">Student Identity</th>
-                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><BrainCircuit size={14}/> Prompt Tuning</div></th>
-                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><Code size={14}/> Algorithmic Lit</div></th>
-                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><ShieldAlert size={14}/> AI Ethics</div></th>
+                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><BrainCircuit size={14}/> Stemios Balance</div></th>
+                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><CheckCircle size={14}/> Streak</div></th>
+                    <th className="p-4 font-semibold border-b border-slate-panel"><div className="flex items-center gap-2"><ShieldAlert size={14}/> Status</div></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-panel text-sm text-text-muted">
-                  {[
-                    { name: 'Alex M.', email: 'alex@student.edu', p1: 85, p2: 60, p3: 40 },
-                    { name: 'Jordan K.', email: 'jordan@student.edu', p1: 100, p2: 90, p3: 100 },
-                    { name: 'Sam T.', email: 'sam@student.edu', p1: 45, p2: 30, p3: 70 },
-                  ].map((s, i) => (
-                    <tr key={i} className="hover:bg-slate-panel/20 transition-colors">
+                  {students.map((s, i) => (
+                    <tr key={s.id} className="hover:bg-slate-panel/20 transition-colors">
                       <td className="p-4">
                         <div className="font-bold text-text-main">{s.name}</div>
                         <div className="text-[11px] text-text-muted font-mono mt-0.5">{s.email}</div>
                       </td>
                       <td className="p-4 align-middle">
-                        <div className="w-full bg-border-dim h-1 rounded-full overflow-hidden">
-                          <div className="bg-violet-neon h-full shadow-[0_0_8px_#6366F1]" style={{ width: `${s.p1}%` }}></div>
+                        <div className="flex items-center gap-2">
+                           <span className="font-mono text-amber-neon font-bold">{s.stemios} S</span>
+                           <div className="flex-1 bg-border-dim h-1 rounded-full overflow-hidden max-w-[100px]">
+                            <div className="bg-amber-neon h-full" style={{ width: `${Math.min(100, s.stemios / 10)}%` }}></div>
+                          </div>
                         </div>
                       </td>
                       <td className="p-4 align-middle">
-                        <div className="w-full bg-border-dim h-1 rounded-full overflow-hidden">
-                          <div className="bg-cyan-neon h-full shadow-[0_0_8px_#06B6D4]" style={{ width: `${s.p2}%` }}></div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-emerald-neon font-bold">{s.streak}</span>
+                          <div className="flex-1 bg-border-dim h-1 rounded-full overflow-hidden max-w-[100px]">
+                            <div className="bg-emerald-neon h-full" style={{ width: `${Math.min(100, s.streak * 5)}%` }}></div>
+                          </div>
                         </div>
                       </td>
                       <td className="p-4 align-middle">
-                        <div className="w-full bg-border-dim h-1 rounded-full overflow-hidden">
-                          <div className="bg-emerald-neon h-full shadow-[0_0_8px_#00AD7C]" style={{ width: `${s.p3}%` }}></div>
-                        </div>
+                        <span className={`text-[10px] uppercase px-2 py-0.5 rounded font-bold ${s.isAdmin ? 'bg-amber-neon/20 text-amber-neon' : 'bg-slate-panel text-text-muted'}`}>
+                          {s.isAdmin ? 'Admin' : 'Regular'}
+                        </span>
                       </td>
                     </tr>
                   ))}
+                  {students.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-10 text-center text-text-muted italic">
+                        No students enrolled in this sector yet.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

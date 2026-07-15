@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -9,7 +9,6 @@ export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
 
 const provider = new GoogleAuthProvider();
 
-// Request Workspace scopes
 const SCOPES = [
   "https://www.googleapis.com/auth/classroom.addons.student",
   "https://www.googleapis.com/auth/classroom.addons.teacher",
@@ -114,4 +113,24 @@ export const getAccessToken = async (): Promise<string | null> => {
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
+};
+
+// Activity Logging
+export const logActivity = async (userId: string, unitId: string, reward: number) => {
+  try {
+    const activityRef = collection(db, 'activities');
+    await addDoc(activityRef, {
+      userId,
+      unitId,
+      reward,
+      timestamp: serverTimestamp()
+    });
+
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      stemios: increment(reward)
+    });
+  } catch (err) {
+    console.error('Error logging activity:', err);
+  }
 };
