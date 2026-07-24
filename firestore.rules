@@ -1,41 +1,138 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Default deny everything not explicitly matched below ──
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // ── Primitives ──
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      // Quick-start guest accounts use @stemio.local and are never "verified"
+      // by design — they're treated as low-trust, read-mostly identities.
+      return request.auth.token.email_verified == true;
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
+
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return true; /* For prototype, everyone can be admin */ }
 
-    // User Rules
+    // NOTE: this costs a document read per rule evaluation. Prefer migrating
+    // to a custom claim (request.auth.token.admin == true) set via the Admin
+    // SDK once you have a trusted server process to set it. Until then this
+    // is the only source of truth for "is this uid an admin".
+    function callerIsAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function callerIsTeacher() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    // ── User schema ──
     function isValidUser(data) {
       return data.keys().hasAll(['name', 'email', 'role', 'isAdmin', 'stemios', 'streak']) &&
+             data.keys().size() == 6 &&
              data.name is string && data.name.size() <= 100 &&
              data.email is string && data.email.size() <= 100 &&
              data.role in ['student', 'teacher'] &&
              data.isAdmin is bool &&
-             data.stemios is number &&
-             data.streak is number;
+             data.stemios is number && data.stemios >= 0 &&
+             data.streak is number && data.streak >= 0;
     }
 
     match /users/{userId} {
-      allow read, write: if true; // Open for prototyping
+      allow get: if isSignedIn() && (request.auth.uid == userId || callerIsTeacher());
+      allow list: if callerIsTeacher();
+
+      // New accounts self-provision as unprivileged students only. Any
+      // elevation to teacher/admin happens out-of-band (Admin SDK/console).
+      allow create: if isSignedIn() && isEmailVerified() &&
+                    userId == request.auth.uid &&
+                    isValidUser(incoming()) &&
+                    incoming().isAdmin == false &&
+                    incoming().role == 'student' &&
+                    incoming().stemios == 100 &&
+                    incoming().streak == 0;
+
+      // stemios and streak are now EXCLUSIVELY written by the
+      // onActivityCreated Cloud Function (Admin SDK, bypasses these rules).
+      // The client may only ever rename itself.
+      allow update: if isSignedIn() && isEmailVerified() &&
+                    userId == request.auth.uid &&
+                    isValidUser(incoming()) &&
+                    incoming().role == existing().role &&
+                    incoming().isAdmin == existing().isAdmin &&
+                    incoming().email == existing().email &&
+                    incoming().stemios == existing().stemios &&
+                    incoming().streak == existing().streak &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name']);
+
+      allow delete: if false;
+
+      // Written only by the Cloud Function (Admin SDK). Owner may read their
+      // own completion history (e.g. to render "done" checkmarks); nobody
+      // writes it from the client.
+      match /completions/{unitId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
 
-    // Activity Rules
+    // ── Activity log ──
+    // reward here is advisory/historical only — onActivityCreated ignores it
+    // and looks the unit up in its own server-side reward table. The bound
+    // below just keeps garbage out of the log itself.
+    function isValidActivity(data) {
+      return data.keys().hasAll(['userId', 'unitId', 'reward', 'timestamp']) &&
+             data.keys().size() == 4 &&
+             data.userId == request.auth.uid &&
+             isValidId(data.unitId) &&
+             data.reward is number && data.reward > 0 && data.reward <= 50 &&
+             data.timestamp is timestamp;
+    }
+
     match /activities/{activityId} {
-      allow read, write: if true; // Open for prototyping
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || callerIsTeacher());
+      allow create: if isSignedIn() && isEmailVerified() && isValidActivity(incoming());
+      // credited / rejectReason are appended by the Cloud Function afterward.
+      allow update: if false;
+      allow delete: if false;
     }
 
-    // Lesson Rules
+    // ── Lessons (published by admins via Lesson Builder) ──
+    function isValidLesson(data) {
+      return data.keys().hasAll(['lessonTitle', 'authorId', 'createdAt', 'updatedAt']) &&
+             data.lessonTitle is string && data.lessonTitle.size() <= 200 &&
+             data.authorId is string && isValidId(data.authorId) &&
+             (!('slides' in data) || (data.slides is list && data.slides.size() <= 60)) &&
+             (!('quiz' in data) || (data.quiz is list && data.quiz.size() <= 20));
+    }
+
     match /lessons/{lessonId} {
-      allow read, write: if true; // Open for prototyping
+      allow read: if true;
+
+      allow create: if callerIsAdmin() && isEmailVerified() &&
+                    isValidLesson(incoming()) &&
+                    incoming().authorId == request.auth.uid;
+
+      allow update: if callerIsAdmin() && isEmailVerified() &&
+                    isValidLesson(incoming()) &&
+                    incoming().authorId == existing().authorId;
+
+      allow delete: if callerIsAdmin() && isEmailVerified();
     }
   }
 }
