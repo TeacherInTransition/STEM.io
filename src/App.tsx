@@ -1,21 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { CONFIG_FLAGS } from './types';
+import { CONFIG_FLAGS, User } from './types';
 import CyberpunkNavbar from './components/CyberpunkNavbar';
 import STEMArcade from './components/STEMArcade';
+import AIFoundations from './components/AIFoundations';
+import UnitLearningPath from './components/UnitLearningPath';
+import LessonViewer from './components/LessonViewer';
 import TeacherDashboard from './components/TeacherDashboard';
 import AvatarCustomizer from './components/AvatarCustomizer';
-import { initAuth, googleSignIn, logout } from './lib/firebase';
+import AuthScreen from './components/AuthScreen';
+import BadgeShowcase from './components/BadgeShowcase';
+import { initAuth, logout } from './lib/firebase';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useUser } from './hooks/useUser';
-import { LogIn, Rocket } from 'lucide-react';
+import { Rocket, X } from 'lucide-react';
+import LessonBuilder from './components/LessonBuilder';
 
 export default function App() {
   const [magnifier, setMagnifier] = useState(1);
   const [dyslexic, setDyslexic] = useState(false);
   const [lightMode, setLightMode] = useState(false);
+  const [activeView, setActiveView] = useState('arcade');
+  const [selectedUnit, setSelectedUnit] = useState<any>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [showBetaPopup, setShowBetaPopup] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const [guestUser, setGuestUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('stemio_guest_user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const { user: currentUser, loading: userLoading } = useUser(firebaseUser);
 
@@ -23,7 +38,7 @@ export default function App() {
     const unsubscribe = initAuth(
       (user, token) => {
         setFirebaseUser(user);
-        setAccessToken(token);
+        setAccessToken(token || null);
       },
       () => {
         setFirebaseUser(null);
@@ -33,25 +48,43 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const result = await googleSignIn();
-      if (result) {
-        setFirebaseUser(result.user);
-        setAccessToken(result.accessToken);
-      }
-    } catch (err) {
-      console.error('Login failed:', err);
-    } finally {
-      setIsLoggingIn(false);
-    }
+  useEffect(() => {
+    const handleGuestUpdate = (e: any) => {
+      setGuestUser(e.detail);
+    };
+    window.addEventListener('guest-user-updated', handleGuestUpdate);
+    return () => window.removeEventListener('guest-user-updated', handleGuestUpdate);
+  }, []);
+
+  const handleAuthSuccess = (user: FirebaseUser, token: string) => {
+    setFirebaseUser(user);
+    setAccessToken(token || null);
+  };
+
+  const handleGuestStart = (name: string) => {
+    const isHaha = name.trim().toLowerCase() === 'haha';
+    const newGuest: User = {
+      id: `guest_${Date.now()}`,
+      name,
+      email: '',
+      role: isHaha ? 'teacher' : 'student',
+      isAdmin: isHaha,
+      stemios: 100,
+      streak: 0
+    };
+    localStorage.setItem('stemio_guest_user', JSON.stringify(newGuest));
+    setGuestUser(newGuest);
   };
 
   const handleLogout = async () => {
-    await logout();
-    setFirebaseUser(null);
-    setAccessToken(null);
+    if (guestUser) {
+      setGuestUser(null);
+      localStorage.removeItem('stemio_guest_user');
+    } else {
+      await logout();
+      setFirebaseUser(null);
+      setAccessToken(null);
+    }
   };
 
   useEffect(() => {
@@ -62,10 +95,12 @@ export default function App() {
     }
   }, [lightMode]);
 
-  // Admin Live-Editing Logic
-  const showBetaGuardedFeatures = currentUser?.isAdmin && CONFIG_FLAGS.adminBetaOverride;
+  const effectiveUser = guestUser || currentUser;
 
-  if (userLoading) {
+  // Admin Live-Editing Logic
+  const showBetaGuardedFeatures = effectiveUser?.isAdmin && CONFIG_FLAGS.adminBetaOverride && showBetaPopup;
+
+  if (userLoading && !guestUser) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[var(--paper)] text-[var(--ink)]">
         <div className="animate-pulse flex flex-col items-center gap-4">
@@ -76,44 +111,17 @@ export default function App() {
     );
   }
 
-  if (!firebaseUser || !currentUser) {
+  const isQuickStartUser = firebaseUser?.email?.endsWith('@stemio.local');
+
+  if (!effectiveUser || (!guestUser && (!firebaseUser || (!isQuickStartUser && !firebaseUser.emailVerified)))) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--paper)] text-[var(--ink)] p-6 text-center">
-        <div className="max-w-md w-full space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tighter ledger-title">
-              Ledger <span className="highlight-made">&amp;</span> Proof
-            </h1>
-            <p className="text-[var(--ink-soft)] font-medium">The STEM Arcade of the Future.</p>
-          </div>
-
-          <div className="p-8 bg-[var(--paper-2)] border border-[var(--line)] rounded-2xl shadow-xl space-y-6">
-            <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-full bg-[var(--amber-tint)] flex items-center justify-center text-[var(--amber)]">
-                <Rocket className="w-10 h-10" />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold">Welcome Back, Cadet</h2>
-              <p className="text-sm text-[var(--muted)]">Sign in to sync your Stemios, track your streaks, and access the curriculum.</p>
-            </div>
-
-            <button
-              onClick={handleLogin}
-              disabled={isLoggingIn}
-              className="w-full flex items-center justify-center gap-3 bg-[var(--amber)] text-[var(--paper)] font-bold py-3 px-6 rounded-xl hover:bg-[var(--amber-bright)] transition-all transform active:scale-95 disabled:opacity-50"
-            >
-              <LogIn className="w-5 h-5" />
-              {isLoggingIn ? 'Connecting...' : 'Sign in with Google'}
-            </button>
-          </div>
-
-          <p className="text-[10px] uppercase tracking-widest text-[var(--muted)] font-mono">
-            Encrypted & Secure • Powered by Firebase
-          </p>
-        </div>
-      </div>
+      <AuthScreen 
+        onAuthSuccess={handleAuthSuccess} 
+        onGuestStart={handleGuestStart}
+        isLoggingIn={isLoggingIn} 
+        setIsLoggingIn={setIsLoggingIn}
+        firebaseUser={firebaseUser}
+      />
     );
   }
 
@@ -123,25 +131,67 @@ export default function App() {
       style={{ fontSize: `${magnifier}rem` }}
     >
       <CyberpunkNavbar
-        user={currentUser}
+        user={effectiveUser}
         lightMode={lightMode}
         setLightMode={setLightMode}
         onLogout={handleLogout}
+        activeView={activeView}
+        onNavigate={setActiveView}
       />
       <main className="flex-1 flex flex-col overflow-hidden overflow-y-auto">
         
         {/* Dynamic Authentication Routing */}
-        {currentUser.role === 'student' && <STEMArcade user={currentUser} />}
-        {currentUser.role === 'teacher' && <TeacherDashboard user={currentUser} accessToken={accessToken} />}
+        {(activeView === 'unit-path' || activeView === 'arcade' || activeView === 'ai-foundations' || activeView === 'badges' || activeView === 'lesson-viewer') && (
+          <>
+            {activeView === 'lesson-viewer' && selectedLessonId && (
+              <LessonViewer 
+                lessonId={selectedLessonId} 
+                onBack={() => setActiveView('unit-path')} 
+              />
+            )}
+            {activeView === 'unit-path' && selectedUnit && selectedUnit.customLesson && (
+              <LessonViewer 
+                lessonId={selectedUnit.id} 
+                onBack={() => setActiveView('arcade')} 
+              />
+            )}
+            {activeView === 'unit-path' && selectedUnit && !selectedUnit.customLesson && (
+              <UnitLearningPath 
+                unitId={selectedUnit.id} 
+                unitTitle={selectedUnit.title} 
+                onBack={() => {
+                  const isAIFoundations = selectedUnit.id.startsWith('u');
+                  setActiveView(isAIFoundations ? 'ai-foundations' : 'arcade');
+                }} 
+                onLessonSelect={(lessonId) => {
+                  setSelectedLessonId(lessonId);
+                  setActiveView('lesson-viewer');
+                }}
+              />
+            )}
+            {activeView === 'arcade' && <STEMArcade user={effectiveUser} onUnitSelect={(unit) => { setSelectedUnit(unit); setActiveView('unit-path'); }} />}
+            {activeView === 'ai-foundations' && <AIFoundations user={effectiveUser} onUnitSelect={(unit) => { setSelectedUnit(unit); setActiveView('unit-path'); }} />}
+            {activeView === 'badges' && <BadgeShowcase user={effectiveUser} />}
+          </>
+        )}
+        {effectiveUser.role === 'teacher' && activeView === 'classroom' && <TeacherDashboard user={effectiveUser} accessToken={accessToken} />}
+        {activeView === 'lesson-builder' && <LessonBuilder user={effectiveUser} onBack={() => setActiveView('arcade')} />}
 
         {/* Admin Beta Features */}
         {showBetaGuardedFeatures && (
           <div className="absolute inset-0 z-50 pointer-events-none p-4">
             <div className="pointer-events-auto bg-[var(--paper-2)] border border-[var(--amber)]/30 p-6 rounded-2xl shadow-2xl relative max-w-4xl mx-auto mt-20 max-h-[80vh] overflow-y-auto backdrop-blur-xl">
+              <button 
+                onClick={() => setShowBetaPopup(false)}
+                className="absolute top-4 right-4 text-[var(--amber)] hover:text-[var(--amber)]/70 transition-colors"
+                title="Close Admin Panel"
+              >
+                <X size={24} />
+              </button>
               <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--paper)] border border-[var(--amber)] text-[var(--amber)] px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(245,158,11,0.2)]">
                 Admin Beta Override Active
               </div>
-              <AvatarCustomizer user={currentUser} />
+              <AvatarCustomizer user={effectiveUser} />
             </div>
           </div>
         )}

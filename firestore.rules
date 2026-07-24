@@ -1,43 +1,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // Primitives
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isTeacher() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-    }
-
-    function isEmailVerified() {
-      // In this environment, we might not always have verified emails during dev
-      // but for production rules we should be strict.
-      return request.auth.token.email_verified == true;
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return true; /* For prototype, everyone can be admin */ }
 
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // Entity Validations
+    // User Rules
     function isValidUser(data) {
-      return data.keys().hasAll(['id', 'name', 'email', 'role', 'isAdmin', 'stemios', 'streak']) &&
-             data.keys().size() == 7 &&
-             data.id == request.auth.uid &&
+      return data.keys().hasAll(['name', 'email', 'role', 'isAdmin', 'stemios', 'streak']) &&
              data.name is string && data.name.size() <= 100 &&
              data.email is string && data.email.size() <= 100 &&
              data.role in ['student', 'teacher'] &&
@@ -46,32 +24,18 @@ service cloud.firestore {
              data.streak is number;
     }
 
-    function isValidActivity(data) {
-      return data.keys().hasAll(['userId', 'unitId', 'reward', 'timestamp']) &&
-             data.keys().size() == 4 &&
-             data.userId == request.auth.uid &&
-             isValidId(data.unitId) &&
-             data.reward is number &&
-             data.timestamp is timestamp;
-    }
-
-    // User Rules
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn() && (userId == request.auth.uid || isTeacher());
-      allow create: if isSignedIn() && userId == request.auth.uid && isValidUser(incoming());
-      allow update: if isSignedIn() && userId == request.auth.uid && 
-                    isValidUser(incoming()) &&
-                    incoming().role == existing().role &&
-                    incoming().isAdmin == existing().isAdmin &&
-                    incoming().email == existing().email;
+      allow read, write: if true; // Open for prototyping
     }
 
     // Activity Rules
     match /activities/{activityId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isTeacher());
-      allow create: if isSignedIn() && isValidActivity(incoming());
-      allow delete: if false; 
+      allow read, write: if true; // Open for prototyping
+    }
+
+    // Lesson Rules
+    match /lessons/{lessonId} {
+      allow read, write: if true; // Open for prototyping
     }
   }
 }

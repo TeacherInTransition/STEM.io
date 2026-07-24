@@ -11,6 +11,14 @@ export default function TeacherDashboard({ user, accessToken }: { user: User; ac
   const [students, setStudents] = useState<User[]>([]);
 
   useEffect(() => {
+    if (user.id.startsWith('guest_')) {
+      setStudents([
+        { id: 'mock1', name: 'Alex (Student)', email: '', role: 'student', isAdmin: false, stemios: 450, streak: 12 },
+        { id: 'mock2', name: 'Sam (Student)', email: '', role: 'student', isAdmin: false, stemios: 120, streak: 3 },
+      ]);
+      return;
+    }
+    
     // Fetch students from Firestore
     const q = query(collection(db, 'users'), where('role', '==', 'student'));
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -19,10 +27,12 @@ export default function TeacherDashboard({ user, accessToken }: { user: User; ac
         studentList.push({ id: doc.id, ...doc.data() } as User);
       });
       setStudents(studentList);
+    }, (error) => {
+      console.error(error);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const handleSync = () => {
     setIsSyncing(true);

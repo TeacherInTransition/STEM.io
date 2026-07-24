@@ -26,8 +26,8 @@ export function useUser(firebaseUser: FirebaseUser | null) {
             id: firebaseUser.uid,
             name: firebaseUser.displayName || 'New User',
             email: firebaseUser.email || '',
-            role: 'student' as Role,
-            isAdmin: false,
+            role: firebaseUser.email === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
+            isAdmin: firebaseUser.email === 'laankanom2018@gmail.com',
             stemios: 100, // Starting bonus
             streak: 0
           };
@@ -44,7 +44,14 @@ export function useUser(firebaseUser: FirebaseUser | null) {
     // Listen for real-time updates (e.g. from activities)
     const unsubscribe = onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
-        setUser(snap.data() as User);
+        const userData = snap.data() as User;
+        if (userData.email === 'laankanom2018@gmail.com' && !userData.isAdmin) {
+            // Force admin mode
+            userData.isAdmin = true;
+            userData.role = 'teacher';
+            setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true });
+        }
+        setUser(userData);
       }
       setLoading(false);
     });

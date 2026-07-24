@@ -1,0 +1,101 @@
+{
+"lessonTitle": "Talking to Machines",
+"media": {
+"videoUrl": ""
+},
+"slides": [
+{
+"slideNumber": 1,
+"title": "Talking to Machines",
+"content": "<p>Example scenario: <em>"A mysterious talking cat started showing up to math class..."</em></p><ul><li>Yes, and he said his name is Whiskers.</li><li>Yes, and he happens to be very good at multiplication.</li></ul><p><strong>AI Branching Probability: Predicting what comes next.</strong></p>",
+"imageUrl": ""
+},
+{
+"slideNumber": 2,
+"title": "Today's Blueprint",
+"content": "<ol><li>Analyze patterns in AI-generated, probability-driven responses.</li><li>Explain how probability and statistics drive these responses.</li><li>Refine outputs through strategic prompt iteration.</li></ol>",
+"imageUrl": ""
+},
+{
+"slideNumber": 3,
+"title": "Question of the Day",
+"content": "<h2>How can I use AI effectively?</h2>",
+"imageUrl": ""
+},
+{
+"slideNumber": 4,
+"title": "Predictable, Not Smart",
+"content": "<h3>The Key on the Table Problem.</h3><p><strong>Contextual & Logical:</strong> A key on a table (human understanding of leaving a key by the door).</p><p><strong>Literal & Fragmented:</strong> key on table (AI rendering a giant key taking up the whole table).</p><p><em>AI failed to consider the whole sentence logically and prioritized literal details.</em></p>",
+"imageUrl": ""
+},
+{
+"slideNumber": 5,
+"title": "The Engineering Vocabulary",
+"content": "<ul><li><strong>Abstraction:</strong> Focusing on the important information and ignoring irrelevant details.</li><li><strong>Prompt:</strong> A question, instruction, scenario, or statement provided by the user to guide the AI's response.</li></ul>",
+"imageUrl": ""
+},
+{
+"slideNumber": 6,
+"title": "Code.org Lesson 1: Levels 2-4",
+"content": "<ul><li><strong>Action:</strong> Go to Activity</li><li><strong>Task:</strong> Prompting Challenges</li><li><strong>Mission:</strong> Start with "Give me 3 gift ideas." Watch what happens. Then, redefine the prompt.</li></ul>",
+"imageUrl": ""
+},
+{
+"slideNumber": 7,
+"title": "The Prompting Loop",
+"content": "<p>The 3X Loop:</p><ol><li><strong>Input:</strong> Text + Multimodal (Images)</li><li><strong>Analyze:</strong> Review the probability-driven output.</li><li><strong>Refine:</strong> Adjust context and constraints.</li></ol><p><strong>The Golden Rule:</strong> Require at least three back-and-forth interactions for effective refinement.</p>",
+"imageUrl": ""
+},
+{
+"slideNumber": 8,
+"title": "Code.org Lesson 1: Level 5",
+"content": "<ul><li><strong>Action:</strong> Go to Activity</li><li><strong>Task:</strong> Prompting Practice (Choice Levels)</li><li><strong>Mission:</strong> Pick a generic prompt. Make it specific. Add an image. Execute the 3X Loop.</li></ul>",
+"imageUrl": ""
+},
+{
+"slideNumber": 9,
+"title": "Code.org Lesson 1: Level 6",
+"content": "<ul><li><strong>Action:</strong> Go to Activity</li><li><strong>Task:</strong> Check Your Understanding</li><li><strong>Mission:</strong> Explain the probability-driven nature of AI responses based on your experiments.</li></ul>",
+"imageUrl": ""
+},
+{
+"slideNumber": 10,
+"title": "Rapid Roundtable",
+"content": "<p><strong>How can I use AI effectively?</strong></p><ul><li>Require at least 3 interactions.</li><li>Add multimodal images for better context.</li><li>Be highly specific.</li><li>Remember it's literal, not smart!</li></ul><p><strong>Discussion Prompts:</strong></p><ul><li>Which specific strategies yielded the best outputs?</li><li>How did adding multimodal inputs (images) change the abstraction?</li><li>How did your 3rd prompt differ from your 1st?</li></ul>",
+"imageUrl": ""
+}
+],
+"quiz": [
+{
+"question": "What does the 'Key on the Table' problem illustrate about AI?",
+"options": [
+"AI perfectly understands logical human context.",
+"AI fails to consider the whole sentence logically and prioritizes literal, fragmented details.",
+"AI is unable to draw tables.",
+"AI needs multimodal images to draw a key."
+],
+"correctIndex": 1
+},
+{
+"question": "What is the definition of 'Abstraction' in the context of engineering vocabulary?",
+"options": [
+"A question or instruction provided to guide the AI.",
+"Executing a 3X Prompting Loop.",
+"Focusing on the important information and ignoring irrelevant details.",
+"Predicting what comes next using probability."
+],
+"correctIndex": 2
+},
+{
+"question": "What is the 'Golden Rule' of the Prompting Loop?",
+"options": [
+"Require at least three back-and-forth interactions for effective refinement.",
+"Always start with 'Give me 3 gift ideas.'",
+"Never use multimodal inputs like images.",
+"Focus only on literal context."
+],
+"correctIndex": 0
+}
+],
+"resources": []
+}

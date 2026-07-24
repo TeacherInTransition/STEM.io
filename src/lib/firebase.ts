@@ -1,5 +1,16 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  signInAnonymously,
+  updateProfile
+} from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -77,8 +88,9 @@ export const initAuth = (
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
       } else if (!isSigningIn) {
-        cachedAccessToken = null;
-        if (onAuthFailure) onAuthFailure();
+        // For email/password login, we won't have a Workspace access token initially
+        // but the user is still authenticated.
+        if (onAuthSuccess) onAuthSuccess(user, "");
       }
     } else {
       cachedAccessToken = null;
@@ -106,6 +118,33 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
   }
 };
 
+export const anonymousSignIn = async (displayName: string): Promise<User> => {
+  const randomId = Math.random().toString(36).substring(2, 10);
+  const fakeEmail = `cadet_${randomId}@stemio.local`;
+  const fakePassword = `Pass_${randomId}_${Date.now()}`;
+  
+  const result = await createUserWithEmailAndPassword(auth, fakeEmail, fakePassword);
+  await updateProfile(result.user, { displayName });
+  return result.user;
+};
+
+export const emailSignUp = async (email: string, password: string): Promise<User> => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  await sendEmailVerification(result.user);
+  return result.user;
+};
+
+export const emailSignIn = async (email: string, password: string): Promise<User> => {
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  return result.user;
+};
+
+export const verifyEmail = async () => {
+  if (auth.currentUser) {
+    await sendEmailVerification(auth.currentUser);
+  }
+};
+
 export const getAccessToken = async (): Promise<string | null> => {
   return cachedAccessToken;
 };
@@ -117,6 +156,8 @@ export const logout = async () => {
 
 // Activity Logging
 export const logActivity = async (userId: string, unitId: string, reward: number) => {
+  if (userId.startsWith('guest_')) return;
+  
   try {
     const activityRef = collection(db, 'activities');
     await addDoc(activityRef, {

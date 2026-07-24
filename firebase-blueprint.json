@@ -25,6 +25,30 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "unitId", "reward", "timestamp"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "A learning lesson created by teachers.",
+      "type": "object",
+      "properties": {
+        "lessonTitle": { "type": "string", "maxLength": 200 },
+        "media": {
+          "type": "object",
+          "properties": {
+            "videoUrl": { "type": "string", "maxLength": 500 }
+          }
+        },
+        "slides": {
+          "type": "array"
+        },
+        "quiz": {
+          "type": "array"
+        },
+        "authorId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lessonTitle", "authorId", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -35,6 +59,10 @@
     "/activities/{activityId}": {
       "schema": "Activity",
       "description": "Student activities log."
+    },
+    "/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Lessons collection."
     }
   }
 }
