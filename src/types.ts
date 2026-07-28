@@ -10,6 +10,32 @@ export interface User {
   streak: number;
 }
 
+export interface ResourceItem {
+  id: string;
+  title: string;
+  type: 'Video' | 'Document' | 'Link' | 'Spreadsheet' | 'Cheat Sheet';
+  url: string;
+  lessonId: string;
+  description: string;
+}
+
+export interface ActivityLog {
+  id?: string;
+  userId: string;
+  unitId: string;
+  reward: number;
+  timestamp: unknown;
+}
+
+export interface Quest {
+  id: string;
+  title: string;
+  reward: number;
+  completed: boolean;
+  progress?: number;
+  maxProgress?: number;
+}
+
 // Admin Live-Editing Runtime Engine Config
 export const CONFIG_FLAGS = {
   enableRedditAvatars: false,
