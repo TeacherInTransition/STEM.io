@@ -19,7 +19,10 @@ import ResourcesPage from './components/ResourcesPage';
 export default function App() {
   const [magnifier, setMagnifier] = useState(1);
   const [dyslexic, setDyslexic] = useState(false);
-  const [lightMode, setLightMode] = useState(false);
+  const [lightMode, setLightMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('stemio_light_mode');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
   const [activeView, setActiveView] = useState('arcade');
   const [selectedUnit, setSelectedUnit] = useState<any>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -94,6 +97,7 @@ export default function App() {
     } else {
       document.body.classList.remove('light-mode');
     }
+    localStorage.setItem('stemio_light_mode', JSON.stringify(lightMode));
   }, [lightMode]);
 
   const effectiveUser = guestUser || currentUser;
@@ -178,6 +182,7 @@ export default function App() {
         {effectiveUser.role === 'teacher' && activeView === 'classroom' && <TeacherDashboard user={effectiveUser} accessToken={accessToken} />}
         {activeView === 'lesson-builder' && <LessonBuilder user={effectiveUser} onBack={() => setActiveView('arcade')} />}
         {activeView === 'resources' && <ResourcesPage user={effectiveUser} />}
+        {activeView === 'avatar' && <AvatarCustomizer user={effectiveUser} />}
 
         {/* Admin Beta Features */}
         {showBetaGuardedFeatures && (

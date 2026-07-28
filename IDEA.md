@@ -1,1 +1,0 @@
-gamifies learning platform

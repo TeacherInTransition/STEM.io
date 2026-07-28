@@ -72,15 +72,65 @@ body.light-mode {
 }
 
 /* Force light mode overrides on hardcoded cyberpunk dark colors */
+body.light-mode [class*="bg-[#090d16]"],
+body.light-mode [class*="bg-[#0b0f17]"],
+body.light-mode [class*="bg-[#0B0F17]"] { 
+  background-color: var(--paper) !important; 
+  color: var(--ink) !important; 
+}
+
+body.light-mode [class*="bg-[#111827]"],
+body.light-mode [class*="bg-gray-900"],
+body.light-mode [class*="bg-slate-900"] { 
+  background-color: var(--surface) !important; 
+  color: var(--ink) !important; 
+}
+
 body.light-mode [class*="bg-[#121214]"] { background-color: transparent !important; }
 body.light-mode [class*="bg-[#161619]"] { background-color: var(--surface) !important; }
 body.light-mode [class*="bg-[#0A0A0B]"] { background-color: var(--paper-2) !important; }
 body.light-mode [class*="bg-[#22252a]"] { background-color: var(--line) !important; }
 
-body.light-mode [class*="border-[#22252a]"] { border-color: var(--line) !important; }
+body.light-mode [class*="bg-gray-950"],
+body.light-mode [class*="bg-slate-950"],
+body.light-mode [class*="bg-gray-800"] { 
+  background-color: var(--paper-2) !important; 
+  color: var(--ink) !important; 
+}
 
-body.light-mode [class*="text-[#E0E0E6]"] { color: var(--ink) !important; }
-body.light-mode [class*="text-[#94A3B8]"] { color: var(--muted) !important; }
+body.light-mode [class*="border-[#1f2937]"],
+body.light-mode [class*="border-[#1F2937]"],
+body.light-mode [class*="border-[#22252a]"],
+body.light-mode [class*="border-gray-800"],
+body.light-mode [class*="border-gray-700"] { 
+  border-color: var(--line) !important; 
+}
+
+body.light-mode [class*="text-gray-100"],
+body.light-mode [class*="text-gray-200"],
+body.light-mode [class*="text-slate-100"],
+body.light-mode [class*="text-slate-200"],
+body.light-mode [class*="text-[#E0E0E6]"] { 
+  color: var(--ink) !important; 
+}
+
+body.light-mode [class*="text-gray-300"],
+body.light-mode [class*="text-slate-300"] { 
+  color: var(--ink-soft) !important; 
+}
+
+body.light-mode [class*="text-gray-400"],
+body.light-mode [class*="text-gray-500"],
+body.light-mode [class*="text-slate-400"],
+body.light-mode [class*="text-[#94A3B8]"] { 
+  color: var(--muted) !important; 
+}
+
+body.light-mode header [class*="text-white"]:not(.bg-gradient-to-tr):not(.bg-[#6366F1]):not(.bg-[#00AD7C]),
+body.light-mode aside [class*="text-white"]:not(.bg-gradient-to-r):not(.bg-[#6366F1]):not(.bg-[#00AD7C]),
+body.light-mode main [class*="text-white"]:not(.bg-indigo-600):not(.bg-[#6366F1]):not(.bg-[#00AD7C]):not(.bg-[var(--amber)]):not(.bg-emerald-600) { 
+  color: var(--ink) !important; 
+}
 
 /* Adapting Neon accents to Warm Amber/Ink */
 body.light-mode [class*="text-[#00FFFF]"],

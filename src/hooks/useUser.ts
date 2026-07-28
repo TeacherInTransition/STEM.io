@@ -22,9 +22,17 @@ export function useUser(firebaseUser: FirebaseUser | null) {
       try {
         const snap = await getDoc(userRef);
         if (!snap.exists()) {
+          const pendingCadetName = localStorage.getItem('pendingCadetName');
+          const isQuickStart = firebaseUser.email?.endsWith('@stemio.local');
+          const nameToUse = isQuickStart && pendingCadetName ? pendingCadetName : (firebaseUser.displayName || 'New User');
+          
+          if (isQuickStart && pendingCadetName) {
+              localStorage.removeItem('pendingCadetName');
+          }
+
           const newUser: User = {
             id: firebaseUser.uid,
-            name: firebaseUser.displayName || 'New User',
+            name: nameToUse,
             email: firebaseUser.email || '',
             role: firebaseUser.email === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
             isAdmin: firebaseUser.email === 'laankanom2018@gmail.com',

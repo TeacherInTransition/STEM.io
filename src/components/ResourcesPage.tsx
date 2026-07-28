@@ -4,7 +4,7 @@ import {
   Search, Plus, Trash2, CheckCircle2, FileText, Video, ExternalLink, 
   FileSpreadsheet, AlertTriangle, Download, Upload, Database, BookOpen, 
   Sparkles, BookMarked, RefreshCw, Sliders, X, Info, Coins, HelpCircle,
-  TrendingUp, Check, ChevronRight, FileCode
+  TrendingUp, Check, ChevronRight, FileCode, Edit3, Copy, Layers, Filter
 } from 'lucide-react';
 import { curriculum } from '../curriculumData';
 import { aiFoundationsCurriculum } from '../aiFoundationsData';
@@ -14,14 +14,116 @@ interface ResourcesPageProps {
   user: User;
 }
 
-// Flat list of lessons for dictionary lookup and selection dropdowns
-const ALL_LESSONS = [
-  ...curriculum.flatMap(s => s.units.map(u => ({ id: u.id, title: u.title, category: s.title }))),
-  ...aiFoundationsCurriculum.flatMap(s => s.units.map(u => ({ id: u.id, title: u.title, category: s.title }))),
-  { id: 'history-of-ai', title: 'History of AI', category: 'Custom Lessons' },
-  { id: 'narrow-vs-general', title: 'Narrow vs General AI', category: 'Custom Lessons' },
-  { id: 'python-basics', title: 'Introduction to Python', category: 'Custom Lessons' }
+export interface LessonDef {
+  id: string;
+  lessonNumber: string;
+  title: string;
+}
+
+export interface UnitDef {
+  unitNumber: string;
+  unitTitle: string;
+  category: string;
+  lessons: LessonDef[];
+}
+
+// Master curriculum structure organized strictly by Unit Number & Lessons
+export const STRUCTURED_UNITS: UnitDef[] = [
+  {
+    unitNumber: "Unit 1",
+    unitTitle: "Quarter 1: AI Foundations & Ethics",
+    category: "AI Foundations",
+    lessons: [
+      { id: "u1", lessonNumber: "Lesson 1.1", title: "AI vs ML vs DL Hierarchy" },
+      { id: "u2", lessonNumber: "Lesson 1.2", title: "Data & Algorithmic Bias" },
+      { id: "u3", lessonNumber: "Lesson 1.3", title: "AI Ethics 101 & FAT Framework" },
+      { id: "u4", lessonNumber: "Lesson 1.4", title: "Expert Systems & Rule Bases" },
+      { id: "history-of-ai", lessonNumber: "Lesson 1.5", title: "History of Artificial Intelligence" },
+      { id: "narrow-vs-general", lessonNumber: "Lesson 1.6", title: "Narrow ANI vs General AGI" },
+      { id: "f1", lessonNumber: "Lesson 1.7", title: "The AI/ML/DL Nested Box" },
+      { id: "f2", lessonNumber: "Lesson 1.8", title: "Bias Auditor Lab Toolkit" }
+    ]
+  },
+  {
+    unitNumber: "Unit 2",
+    unitTitle: "Quarter 2: Hands-On ML & Vibe Coding",
+    category: "Hands-On ML",
+    lessons: [
+      { id: "u5", lessonNumber: "Lesson 2.1", title: "ML Model Training & Labeled Datasets" },
+      { id: "u6", lessonNumber: "Lesson 2.2", title: "Vibe Coding & Prompt Workflows" },
+      { id: "u7", lessonNumber: "Lesson 2.3", title: "Classification vs Regression Algorithms" },
+      { id: "u8", lessonNumber: "Lesson 2.4", title: "Graphs, Pathfinding & Data Structures" },
+      { id: "v1", lessonNumber: "Lesson 2.5", title: "Prompt-to-App Blueprinting" },
+      { id: "v2", lessonNumber: "Lesson 2.6", title: "Teachable Vision Box Prototyping" }
+    ]
+  },
+  {
+    unitNumber: "Unit 3",
+    unitTitle: "Quarter 3: Deep Learning & Neural Networks",
+    category: "Deep Learning",
+    lessons: [
+      { id: "u9", lessonNumber: "Lesson 3.1", title: "Neural Networks & Layer Architecture" },
+      { id: "u10", lessonNumber: "Lesson 3.2", title: "Automated Feature Extraction" },
+      { id: "u11", lessonNumber: "Lesson 3.3", title: "Introduction to Autonomous AI Agents" },
+      { id: "u12", lessonNumber: "Lesson 3.4", title: "Generative AI Text & Image Models" },
+      { id: "d1", lessonNumber: "Lesson 3.5", title: "Hidden Layer Adjuster Lab" },
+      { id: "d2", lessonNumber: "Lesson 3.6", title: "Perceive-Think-Act Agent Loops" }
+    ]
+  },
+  {
+    unitNumber: "Unit 4",
+    unitTitle: "Quarter 4: AI Agents Mastery & Gems",
+    category: "Agents Mastery",
+    lessons: [
+      { id: "u13", lessonNumber: "Lesson 4.1", title: "Building & Deploying Custom Gemini Gems" },
+      { id: "u14", lessonNumber: "Lesson 4.2", title: "3-Test Agent Iteration & Debugging" },
+      { id: "u15", lessonNumber: "Lesson 4.3", title: "Multi-Agent Collaborative Teams" },
+      { id: "u16", lessonNumber: "Lesson 4.4", title: "Professional Vibe Coding Agent Pipeline" }
+    ]
+  },
+  {
+    unitNumber: "Unit 5",
+    unitTitle: "Quarter 5: Synthesis, Exam Prep & Capstone",
+    category: "Exam Prep & Capstone",
+    lessons: [
+      { id: "u17", lessonNumber: "Lesson 5.1", title: "Explainable AI (XAI) & Ethics Deep Dive" },
+      { id: "u18", lessonNumber: "Lesson 5.2", title: "IGCSE & IB Syllabus Review Drills" },
+      { id: "u19", lessonNumber: "Lesson 5.3", title: "Community Problem Capstone Agent" },
+      { id: "u20", lessonNumber: "Lesson 5.4", title: "Final Evidence Exam Portfolio" },
+      { id: "cp1", lessonNumber: "Lesson 5.5", title: "3-Test Failure Tracker" },
+      { id: "cp2", lessonNumber: "Lesson 5.6", title: "Portfolio Evidence Compactor" }
+    ]
+  },
+  {
+    unitNumber: "Unit S1",
+    unitTitle: "Computing Systems, Hardware & Protocols",
+    category: "Computing Systems",
+    lessons: [
+      { id: "s1", lessonNumber: "Lesson S1.1", title: "Silicon Race: CPU vs GPU Parallel Architecture" },
+      { id: "s2", lessonNumber: "Lesson S1.2", title: "The Packet Tracer Matrix & TCP/IP Routing" }
+    ]
+  },
+  {
+    unitNumber: "Unit C1",
+    unitTitle: "Cybersecurity & Data Science Literacy",
+    category: "Cybersecurity & Data",
+    lessons: [
+      { id: "c1", lessonNumber: "Lesson C1.1", title: "Phish Detector Simulation & Prompt Defense" },
+      { id: "c2", lessonNumber: "Lesson C2.1", title: "The Scatterplot Sleuth & Outlier Cleaning" }
+    ]
+  },
+  {
+    unitNumber: "Unit PY1",
+    unitTitle: "Python Programming Foundations",
+    category: "Programming",
+    lessons: [
+      { id: "python-basics", lessonNumber: "Lesson PY1.1", title: "Introduction to Python Syntax & Arrays" }
+    ]
+  }
 ];
+
+// Flat list of ALL lessons for selection dropdowns
+const ALL_LESSONS = STRUCTURED_UNITS.flatMap(u => u.lessons.map(l => ({ id: l.id, title: `${l.lessonNumber}: ${l.title}`, unitNumber: u.unitNumber })));
 
 export default function ResourcesPage({ user }: ResourcesPageProps) {
   const [resources, setResources] = useState<ResourceItem[]>([]);
@@ -41,10 +143,32 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'browse' | 'admin'>('browse');
 
+  // Unit filter state for the spreadsheet grid
+  const [unitFilter, setUnitFilter] = useState<string>('All');
+
+  // Modal / Editor state for link editing or creation
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [modalItem, setModalItem] = useState<{
+    id?: string;
+    title: string;
+    type: 'Video' | 'Document' | 'Spreadsheet' | 'Cheat Sheet' | 'Link';
+    url: string;
+    lessonId: string;
+    description: string;
+  }>({
+    title: '',
+    type: 'Link',
+    url: '',
+    lessonId: 'u1',
+    description: ''
+  });
+
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
   // Load resources and student completions on mount
   useEffect(() => {
     loadData();
-    // Load student's completed resources from localStorage
     const savedCompletions = localStorage.getItem(`stemio_completed_resources_${user.id}`);
     if (savedCompletions) {
       try {
@@ -70,20 +194,16 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
 
   // Student marks a resource as opened/completed
   const handleResourceOpen = async (resource: ResourceItem) => {
-    // Open in new tab referrer safe
     window.open(resource.url, '_blank', 'noopener,noreferrer');
 
-    // Prevent double completions
     if (completedResources.includes(resource.id)) return;
 
-    // Increment local views count
     setResources(prev => prev.map(r => r.id === resource.id ? { ...r, views: (r.views || 0) + 1 } : r));
     
     const newCompletions = [...completedResources, resource.id];
     setCompletedResources(newCompletions);
     localStorage.setItem(`stemio_completed_resources_${user.id}`, JSON.stringify(newCompletions));
 
-    // Award +5 Stemios for reviewing resource
     try {
       const result = await awardStemios(user.id, `resource_${resource.id}`, 5);
       if (result.awarded) {
@@ -95,29 +215,27 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
     }
   };
 
-  // Render correct icon depending on type
   const getResourceIcon = (type: string) => {
     switch (type) {
       case 'Video':
-        return <Video className="text-[#EF4444]" size={18} />;
+        return <Video className="text-[#EF4444]" size={16} />;
       case 'Document':
-        return <FileText className="text-[#3B82F6]" size={18} />;
+        return <FileText className="text-[#3B82F6]" size={16} />;
       case 'Spreadsheet':
-        return <FileSpreadsheet className="text-[#10B981]" size={18} />;
+        return <FileSpreadsheet className="text-[#10B981]" size={16} />;
       case 'Cheat Sheet':
-        return <FileCode className="text-[#F59E0B]" size={18} />;
+        return <FileCode className="text-[#F59E0B]" size={16} />;
       default:
-        return <ExternalLink className="text-[var(--muted)]" size={18} />;
+        return <ExternalLink className="text-[var(--muted)]" size={16} />;
     }
   };
 
-  // Helper to map Lesson ID to Name
   const getLessonName = (id: string) => {
     const found = ALL_LESSONS.find(l => l.id === id);
     return found ? found.title : `Lesson Reference (${id})`;
   };
 
-  // Filtered resources list for the student
+  // Filtered resources list for student view
   const filteredResources = useMemo(() => {
     return resources.filter(res => {
       const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -128,40 +246,119 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
     });
   }, [resources, searchQuery, typeFilter, lessonFilter]);
 
-  // Completion progress percentage
   const completionPercentage = useMemo(() => {
     if (resources.length === 0) return 0;
     const completedCount = resources.filter(r => completedResources.includes(r.id)).length;
     return Math.round((completedCount / resources.length) * 100);
   }, [resources, completedResources]);
 
-  // Interactive Grid Functions for Admin/Teacher
-  const handleCellEdit = (index: number, field: keyof ResourceItem, value: any) => {
-    setGridRows(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-    setIsGridDirty(true);
-  };
+  // Dynamically compute Unit list including any custom unmapped lessons
+  const displayUnits = useMemo(() => {
+    const definedLessonIds = new Set(STRUCTURED_UNITS.flatMap(u => u.lessons.map(l => l.id)));
+    
+    // Find any orphan lessonIds in gridRows
+    const orphanLessonIds: string[] = Array.from(
+      new Set(gridRows.map(r => r.lessonId).filter(id => Boolean(id) && !definedLessonIds.has(id)))
+    );
 
-  const handleAddRow = () => {
-    const newRow: ResourceItem = {
-      id: `res-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      title: 'New Lesson Resource',
-      type: 'Link',
+    let unitsList = [...STRUCTURED_UNITS];
+
+    if (orphanLessonIds.length > 0) {
+      unitsList.push({
+        unitNumber: "Custom Units",
+        unitTitle: "Custom & Uncategorized Lesson Resources",
+        category: "Custom Lessons",
+        lessons: orphanLessonIds.map(id => ({
+          id,
+          lessonNumber: `Lesson ${id}`,
+          title: getLessonName(id)
+        }))
+      });
+    }
+
+    if (unitFilter !== 'All') {
+      unitsList = unitsList.filter(u => u.unitNumber === unitFilter);
+    }
+
+    return unitsList;
+  }, [gridRows, unitFilter]);
+
+  // Open modal to add a new link to a specific lesson cell
+  const handleOpenAddForLesson = (lessonId: string) => {
+    setModalMode('add');
+    setModalItem({
+      title: '',
+      type: 'Document',
       url: 'https://',
-      lessonId: ALL_LESSONS[0]?.id || 'u1',
-      description: 'Add a helpful overview describing this learning asset.',
-      views: 0
-    };
-    setGridRows(prev => [...prev, newRow]);
-    setIsGridDirty(true);
+      lessonId,
+      description: ''
+    });
+    setShowLinkModal(true);
   };
 
-  const handleDeleteRow = (index: number) => {
-    setGridRows(prev => prev.filter((_, i) => i !== index));
+  // Open modal to edit an existing link
+  const handleOpenEditItem = (item: ResourceItem) => {
+    setModalMode('edit');
+    setModalItem({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      url: item.url,
+      lessonId: item.lessonId,
+      description: item.description
+    });
+    setShowLinkModal(true);
+  };
+
+  // Save changes from the Add/Edit Link Modal
+  const handleSaveModalItem = () => {
+    if (!modalItem.title.trim()) {
+      alert('Please enter a valid title for the resource link.');
+      return;
+    }
+    if (!modalItem.url.trim()) {
+      alert('Please enter a valid URL link.');
+      return;
+    }
+
+    if (modalMode === 'add') {
+      const newItem: ResourceItem = {
+        id: `res-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        title: modalItem.title.trim(),
+        type: modalItem.type,
+        url: modalItem.url.trim(),
+        lessonId: modalItem.lessonId,
+        description: modalItem.description.trim() || 'Lesson resource reference link.',
+        views: 0
+      };
+      setGridRows(prev => [...prev, newItem]);
+    } else if (modalMode === 'edit' && modalItem.id) {
+      setGridRows(prev => prev.map(item => item.id === modalItem.id ? {
+        ...item,
+        title: modalItem.title.trim(),
+        type: modalItem.type,
+        url: modalItem.url.trim(),
+        lessonId: modalItem.lessonId,
+        description: modalItem.description.trim()
+      } : item));
+    }
+
     setIsGridDirty(true);
+    setShowLinkModal(false);
+  };
+
+  // Quick delete link from cell
+  const handleDeleteLink = (id: string) => {
+    if (confirm('Are you sure you want to remove this resource link from the lesson?')) {
+      setGridRows(prev => prev.filter(item => item.id !== id));
+      setIsGridDirty(true);
+    }
+  };
+
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedUrl(url);
+    setTimeout(() => setCopiedUrl(null), 2000);
   };
 
   const handleRevertChanges = () => {
@@ -170,7 +367,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
     setPasteError(null);
   };
 
-  // Copy paste parsing logic
+  // Bulk paste parser
   const handlePasteImport = () => {
     if (!bulkPasteText.trim()) {
       setPasteError('Input is empty. Paste data before compiling.');
@@ -185,12 +382,10 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
       for (const line of lines) {
         if (!line.trim()) continue;
         
-        // Split on Tab (default Excel/Google Sheets separator) or comma
         const cells = line.includes('\t') ? line.split('\t') : line.split(',');
         if (cells.length < 2) continue;
 
         const col0 = cells[0].toLowerCase();
-        // Skip header lines
         if (!skippedHeaders && (col0.includes('title') || col0.includes('name') || col0.includes('header'))) {
           skippedHeaders = true;
           continue;
@@ -220,7 +415,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
       }
 
       if (imported.length === 0) {
-        setPasteError('Could not parse any valid rows. Please check instructions.');
+        setPasteError('Could not parse any valid rows. Please check format.');
         return;
       }
 
@@ -242,19 +437,18 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
       if (success) {
         setResources(gridRows);
         setIsGridDirty(false);
-        alert('🌐 Cloud Database synchronized successfully! All systems are up-to-date.');
+        alert('🌐 Cloud Database synchronized successfully! All lesson resource links updated.');
       } else {
         alert('Synchronization warning: Changes saved to local browser sandbox.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error updating database. Sinking back to sandbox storage.');
+      alert('Error updating database.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Demo CSV Export
   const downloadCSVSample = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + "Title,Type,URL,LessonId,Description\n"
@@ -274,7 +468,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto p-6 space-y-6 animate-fadeIn" style={{ backgroundColor: 'transparent' }}>
       
-      {/* HUD Floating Reward Toast */}
+      {/* Toast Notification */}
       {rewardMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#10B981] text-white font-mono text-xs font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-bounce border border-emerald-400">
           <Coins size={16} className="text-yellow-300" />
@@ -290,15 +484,15 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
             <span>Learning Resources Directory</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--ink)]">
-            Reference Sheets & Video Library
+            Curriculum Resources & Reference Library
           </h1>
           <p className="text-xs text-[var(--muted)] max-w-2xl mt-1 leading-relaxed">
-            Boost your understanding of Grade 10 computer engineering topics. Access verified external worksheets, Python syntax cards, interactive spreadsheets, and video explainers. Completing assets awards <strong className="text-[var(--amber)]">+5 Stemios</strong>.
+            Access verified external worksheets, Python syntax cards, interactive spreadsheets, and video explainers. Completing assets awards <strong className="text-[var(--amber)]">+5 Stemios</strong>.
           </p>
         </div>
 
         {/* User Role Quick Switch Tabs */}
-        {(user.isAdmin || user.role === 'teacher') && (
+        {user.isAdmin && (
           <div className="flex bg-[var(--paper-2)] border border-[var(--line-2)] p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('browse')}
@@ -316,12 +510,11 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
         )}
       </div>
 
-      {activeTab === 'browse' ? (
+      {activeTab === 'browse' || !user.isAdmin ? (
         <>
-          {/* STUDENT PROGRESS & QUICK STATS BAR */}
+          {/* STUDENT PROGRESS & STATS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            {/* Completion Progress Card */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Resource Completion</span>
@@ -349,7 +542,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               </div>
             </div>
 
-            {/* Reward Potential Tracker */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Active Rewards Remaining</span>
@@ -363,7 +555,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               </div>
             </div>
 
-            {/* Curriculum Resource Density Card */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Core Integration</span>
@@ -379,7 +570,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
 
           {/* FILTERS & SEARCH ROW */}
           <div className="flex flex-col md:flex-row gap-4 bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl">
-            {/* Search */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={16} />
               <input
@@ -396,7 +586,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               )}
             </div>
 
-            {/* Type filter */}
             <div className="w-full md:w-48">
               <select
                 value={typeFilter}
@@ -411,7 +600,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               </select>
             </div>
 
-            {/* Lesson association filter */}
             <div className="w-full md:w-64">
               <select
                 value={lessonFilter}
@@ -439,7 +627,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               <AlertTriangle className="text-[var(--amber)] mb-3" size={32} />
               <h3 className="text-sm font-bold text-[var(--ink)] uppercase">No matching resources found</h3>
               <p className="text-xs text-[var(--muted)] mt-1.5 max-w-sm">
-                Try adjusting your text search, clearing filters, or requesting your Course Administrator to upload spreadsheet reference items.
+                Try adjusting your text search, clearing filters, or asking your teacher to upload spreadsheet reference items.
               </p>
               <button 
                 onClick={() => { setSearchQuery(''); setTypeFilter('All'); setLessonFilter('All'); }}
@@ -459,7 +647,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                     className="bg-[var(--paper-2)] border border-[var(--line-2)] hover:border-[var(--amber)]/30 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-[1px] relative group"
                   >
                     <div>
-                      {/* Top badges bar */}
                       <div className="flex items-center justify-between mb-3.5 gap-2">
                         <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold bg-[var(--surface)] border border-[var(--line)] text-[var(--ink)] px-2.5 py-1 rounded-full">
                           {getResourceIcon(res.type)}
@@ -471,7 +658,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                         </span>
                       </div>
 
-                      {/* Main resource details */}
                       <h3 className="text-sm font-bold text-[var(--ink)] group-hover:text-[var(--amber)] transition-colors line-clamp-1 mb-1.5">
                         {res.title}
                       </h3>
@@ -480,7 +666,6 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                       </p>
                     </div>
 
-                    {/* Bottom Action Section */}
                     <div className="border-t border-[var(--line-2)] pt-3.5 mt-2 flex items-center justify-between gap-2">
                       <span className="text-[10px] text-[var(--muted)] font-mono">
                         Linked: <strong className="text-[var(--ink-soft)] font-normal">{getLessonName(res.lessonId)}</strong>
@@ -501,94 +686,91 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                           </>
                         ) : (
                           <>
+                            <span>Open Resource</span>
                             <ExternalLink size={13} />
-                            <span>Study & Earn</span>
                           </>
                         )}
                       </button>
                     </div>
-
-                    {/* Completed visual badge ribbon */}
-                    {isCompleted && (
-                      <span className="absolute top-2 right-2 flex items-center justify-center w-5 h-5 bg-emerald-500 text-white rounded-full border-2 border-[var(--paper-2)]">
-                        <Check size={12} strokeWidth={3} />
-                      </span>
-                    )}
                   </div>
                 );
               })}
             </div>
           )}
-
-          {/* SYLLABUS DOCUMENT & GUIDE REFERENCE CARD */}
-          <div className="bg-[var(--paper-2)] border border-[var(--line-2)] rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-[var(--amber-tint)] rounded-xl text-[var(--amber)] shrink-0">
-                <FileSpreadsheet size={28} />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-[var(--ink)] uppercase tracking-wide">Course Syllabus & Curriculum Planner</h4>
-                <p className="text-xs text-[var(--muted)] leading-relaxed max-w-2xl">
-                  Review the official MUIDS learning timeline, homework worksheets, grading rubrics, and project guidelines directly.
-                </p>
-              </div>
-            </div>
-            <a 
-              href="https://docs.google.com/spreadsheets/d/1muids-timeline-2026/edit" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full md:w-auto px-5 py-2.5 bg-[var(--surface)] border border-[var(--line)] hover:border-[var(--amber)]/30 rounded-xl text-xs font-bold text-[var(--ink)] hover:text-[var(--amber)] transition-colors flex items-center justify-center gap-2 shrink-0"
-            >
-              <ExternalLink size={14} />
-              <span>Open Master Spreadsheet</span>
-            </a>
-          </div>
         </>
       ) : (
-        /* ADMIN/TEACHER INTERACTIVE GRID SPREADSHEET EDITOR */
+        /* REFINED SPREADSHEET EDITOR: UNIT NUMBER -> LESSONS -> RESOURCE LINKS CELL */
         <div className="space-y-6">
           
-          {/* Top Admin Tools Toolbar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl">
-            <div className="flex items-center gap-2">
-              <Database className="text-[var(--amber)]" size={18} />
+          {/* Top Control Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl shadow-xs">
+            
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-[var(--amber-tint)] border border-[var(--amber)]/20 rounded-lg text-[var(--amber)]">
+                <FileSpreadsheet size={20} />
+              </div>
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--ink)]">Database Grid Control</h3>
-                <p className="text-[10px] text-[var(--muted)] font-mono">
-                  {gridRows.length} total rows active • {isGridDirty ? <span className="text-yellow-500 font-bold">Unsaved changes</span> : <span className="text-emerald-500">Synced to Cloud</span>}
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--ink)] flex items-center gap-2">
+                  <span>Unit & Lesson Spreadsheet Grid</span>
+                  <span className="px-2 py-0.5 bg-[var(--surface)] text-[10px] font-mono rounded text-[var(--amber)] border border-[var(--line)]">
+                    {gridRows.length} total links
+                  </span>
+                </h3>
+                <p className="text-[11px] text-[var(--muted)] font-mono mt-0.5">
+                  Organized by Unit Number & Lessons • {isGridDirty ? <span className="text-amber-500 font-bold">Unsaved Changes Pending</span> : <span className="text-emerald-500 font-semibold">Synced to Cloud</span>}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Unit Filter Selector */}
+              <div className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--line)] px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--ink)]">
+                <Filter size={13} className="text-[var(--amber)]" />
+                <span className="text-[10px] uppercase text-[var(--muted)] font-mono">Unit Filter:</span>
+                <select
+                  value={unitFilter}
+                  onChange={(e) => setUnitFilter(e.target.value)}
+                  className="bg-transparent focus:outline-none cursor-pointer text-xs font-semibold text-[var(--ink)]"
+                >
+                  <option value="All">All Units</option>
+                  {STRUCTURED_UNITS.map(u => (
+                    <option key={u.unitNumber} value={u.unitNumber}>
+                      {u.unitNumber}: {u.unitTitle}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
-                onClick={() => setShowBulkModal(true)}
-                className="px-3.5 py-2 bg-[var(--surface)] border border-[var(--line)] hover:border-[var(--amber)]/30 rounded-lg text-xs font-bold text-[var(--ink)] hover:text-[var(--amber)] transition-all flex items-center gap-1.5"
+                onClick={() => {
+                  setModalMode('add');
+                  setModalItem({ title: '', type: 'Document', url: 'https://', lessonId: 'u1', description: '' });
+                  setShowLinkModal(true);
+                }}
+                className="px-3.5 py-2 bg-[var(--amber-tint)] hover:bg-[var(--amber)]/20 text-[var(--amber)] border border-[var(--amber)]/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Upload size={14} /> Paste Spreadsheet (Excel/CSV)
-              </button>
-              
-              <button
-                onClick={handleAddRow}
-                className="px-3.5 py-2 bg-[var(--amber-tint)] hover:bg-[var(--amber)]/20 text-[var(--amber)] border border-[var(--amber)]/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <Plus size={14} /> Add Row
+                <Plus size={14} /> Add Link
               </button>
 
-              <div className="h-6 w-[1px] bg-[var(--line-2)] mx-1"></div>
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="px-3.5 py-2 bg-[var(--surface)] border border-[var(--line)] hover:border-[var(--amber)]/30 rounded-lg text-xs font-bold text-[var(--ink)] hover:text-[var(--amber)] transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload size={14} /> Paste Spreadsheet
+              </button>
 
               {isGridDirty && (
                 <>
                   <button
                     onClick={handleRevertChanges}
-                    className="px-3.5 py-2 bg-transparent hover:bg-rose-500/10 text-rose-400 border border-transparent hover:border-rose-500/20 rounded-lg text-xs font-bold transition-all"
+                    className="px-3 py-2 text-rose-400 hover:bg-rose-500/10 rounded-lg text-xs font-bold transition-all cursor-pointer"
                   >
                     Discard
                   </button>
                   <button
                     onClick={handleSaveChanges}
                     disabled={saving}
-                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     {saving ? <RefreshCw className="animate-spin" size={14} /> : <Check size={14} />}
                     <span>Save Changes</span>
@@ -598,118 +780,278 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
             </div>
           </div>
 
-          {/* SPREADSHEET TABLE GRID CONTAINER */}
-          <div className="border border-[var(--line-2)] rounded-xl bg-[var(--paper-2)] overflow-hidden shadow-xs">
+          {/* MAIN SPREADSHEET TABLE GRID */}
+          <div className="border border-[var(--line-2)] rounded-2xl bg-[var(--paper-2)] overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
+              <table className="w-full text-left border-collapse table-fixed min-w-[960px]">
                 <thead>
                   <tr className="bg-[var(--paper)] text-[10px] font-mono uppercase tracking-wider text-[var(--muted)] border-b border-[var(--line-2)]">
-                    <th className="p-3 w-12 text-center">#</th>
-                    <th className="p-3 w-64">Resource Title</th>
-                    <th className="p-3 w-36">Type</th>
-                    <th className="p-3 w-64">Link URL</th>
-                    <th className="p-3 w-48">Linked Lesson</th>
-                    <th className="p-3 w-80">Brief Description</th>
-                    <th className="p-3 w-16 text-center">Action</th>
+                    <th className="p-3.5 w-60 font-bold border-r border-[var(--line-2)]">Unit Number & Theme</th>
+                    <th className="p-3.5 w-64 font-bold border-r border-[var(--line-2)]">Lessons</th>
+                    <th className="p-3.5 font-bold">Resource Links Cell</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--line-2)] text-xs text-[var(--ink-soft)]">
-                  {gridRows.map((row, idx) => (
-                    <tr key={row.id} className="hover:bg-[var(--surface)]/40 transition-colors">
-                      {/* Count */}
-                      <td className="p-3 text-center font-mono text-[var(--muted)] bg-[var(--paper)]/20">{idx + 1}</td>
-                      
-                      {/* Title Cell */}
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={row.title}
-                          onChange={(e) => handleCellEdit(idx, 'title', e.target.value)}
-                          className="w-full bg-[var(--surface)] border border-[var(--line)] rounded px-2.5 py-1.5 focus:outline-none focus:border-[var(--amber)] text-xs text-[var(--ink)]"
-                        />
-                      </td>
+                  {displayUnits.map((unit) => {
+                    return unit.lessons.map((lesson, lessonIdx) => {
+                      const lessonLinks = gridRows.filter(r => r.lessonId === lesson.id);
 
-                      {/* Type Cell */}
-                      <td className="p-2">
-                        <select
-                          value={row.type}
-                          onChange={(e) => handleCellEdit(idx, 'type', e.target.value)}
-                          className="w-full bg-[var(--surface)] border border-[var(--line)] rounded px-2 py-1.5 focus:outline-none focus:border-[var(--amber)] text-xs text-[var(--ink)] cursor-pointer"
-                        >
-                          <option value="Video">Video</option>
-                          <option value="Document">Document</option>
-                          <option value="Spreadsheet">Spreadsheet</option>
-                          <option value="Cheat Sheet">Cheat Sheet</option>
-                          <option value="Link">Web Link</option>
-                        </select>
-                      </td>
+                      return (
+                        <tr key={`${unit.unitNumber}-${lesson.id}`} className="hover:bg-[var(--surface)]/30 transition-colors">
+                          
+                          {/* CELL 1: UNIT NUMBER (Rowspan representation or clean sticky unit info) */}
+                          {lessonIdx === 0 ? (
+                            <td 
+                              rowSpan={unit.lessons.length} 
+                              className="p-4 align-top border-r border-[var(--line-2)] bg-[var(--paper)]/40 space-y-2"
+                            >
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--amber-tint)] text-[var(--amber)] border border-[var(--amber)]/20 rounded-md font-mono text-xs font-bold">
+                                <Layers size={13} />
+                                <span>{unit.unitNumber}</span>
+                              </div>
+                              <h4 className="text-xs font-bold text-[var(--ink)] leading-snug">
+                                {unit.unitTitle}
+                              </h4>
+                              <span className="block text-[10px] font-mono text-[var(--muted)]">
+                                Category: {unit.category}
+                              </span>
+                              <div className="pt-2 text-[10px] font-mono text-[var(--muted)] border-t border-[var(--line-2)]">
+                                {unit.lessons.reduce((acc, l) => acc + gridRows.filter(r => r.lessonId === l.id).length, 0)} total links in unit
+                              </div>
+                            </td>
+                          ) : null}
 
-                      {/* URL Link Cell */}
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={row.url}
-                          onChange={(e) => handleCellEdit(idx, 'url', e.target.value)}
-                          className="w-full bg-[var(--surface)] border border-[var(--line)] rounded px-2.5 py-1.5 focus:outline-none focus:border-[var(--amber)] text-xs text-[var(--ink)] font-mono"
-                        />
-                      </td>
+                          {/* CELL 2: LESSON */}
+                          <td className="p-3.5 align-top border-r border-[var(--line-2)] bg-[var(--paper-2)]/50 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-[var(--amber)]">
+                                {lesson.lessonNumber}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[var(--surface)] text-[var(--muted)] border border-[var(--line)] rounded">
+                                {lesson.id}
+                              </span>
+                            </div>
+                            <h5 className="text-xs font-semibold text-[var(--ink)] leading-snug">
+                              {lesson.title}
+                            </h5>
+                          </td>
 
-                      {/* Linked Lesson ID Cell */}
-                      <td className="p-2">
-                        <select
-                          value={row.lessonId}
-                          onChange={(e) => handleCellEdit(idx, 'lessonId', e.target.value)}
-                          className="w-full bg-[var(--surface)] border border-[var(--line)] rounded px-2 py-1.5 focus:outline-none focus:border-[var(--amber)] text-xs text-[var(--ink)] cursor-pointer"
-                        >
-                          {ALL_LESSONS.map(l => (
-                            <option key={l.id} value={l.id}>
-                              [{l.id}] {l.title.substring(0, 24)}...
-                            </option>
-                          ))}
-                        </select>
-                      </td>
+                          {/* CELL 3: RESOURCE LINKS CELL (Where each lesson has its own cell with resource links!) */}
+                          <td className="p-3.5 align-top space-y-2">
+                            {lessonLinks.length === 0 ? (
+                              <div className="py-2 px-3 border border-dashed border-[var(--line)] rounded-xl text-[11px] text-[var(--muted)] italic flex items-center justify-between">
+                                <span>No resource links attached to this lesson yet.</span>
+                                <button
+                                  onClick={() => handleOpenAddForLesson(lesson.id)}
+                                  className="text-[11px] font-bold text-[var(--amber)] hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Plus size={13} /> Add Link
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {lessonLinks.map((item) => (
+                                  <div 
+                                    key={item.id}
+                                    className="p-2.5 bg-[var(--surface)] border border-[var(--line)] hover:border-[var(--amber)]/40 rounded-xl flex items-start justify-between gap-3 transition-all group"
+                                  >
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className="p-1.5 bg-[var(--paper-2)] border border-[var(--line)] rounded-lg shrink-0 mt-0.5">
+                                        {getResourceIcon(item.type)}
+                                      </div>
+                                      <div className="min-w-0 space-y-0.5">
+                                        <div className="flex items-center gap-2">
+                                          <h6 className="text-xs font-bold text-[var(--ink)] truncate group-hover:text-[var(--amber)] transition-colors">
+                                            {item.title}
+                                          </h6>
+                                          <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 bg-[var(--paper-2)] text-[var(--muted)] border border-[var(--line)] rounded">
+                                            {item.type}
+                                          </span>
+                                        </div>
+                                        
+                                        <a 
+                                          href={item.url} 
+                                          target="_blank" 
+                                          rel="noreferrer"
+                                          className="text-[11px] font-mono text-blue-400 hover:underline truncate block max-w-md"
+                                        >
+                                          {item.url}
+                                        </a>
 
-                      {/* Description Cell */}
-                      <td className="p-2">
-                        <textarea
-                          rows={1}
-                          value={row.description}
-                          onChange={(e) => handleCellEdit(idx, 'description', e.target.value)}
-                          className="w-full bg-[var(--surface)] border border-[var(--line)] rounded px-2.5 py-1.5 focus:outline-none focus:border-[var(--amber)] text-xs text-[var(--ink)] resize-none"
-                        />
-                      </td>
+                                        {item.description && (
+                                          <p className="text-[10px] text-[var(--muted)] line-clamp-1">
+                                            {item.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
 
-                      {/* Actions delete row */}
-                      <td className="p-2 text-center">
-                        <button
-                          onClick={() => handleDeleteRow(idx)}
-                          className="p-1.5 text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500 rounded transition"
-                          title="Delete resource row"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                                    {/* Action buttons inside the cell */}
+                                    <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                                      <button
+                                        onClick={() => handleCopyUrl(item.url)}
+                                        className="p-1.5 text-[var(--muted)] hover:text-[var(--ink)] bg-[var(--paper-2)] hover:bg-[var(--line-2)] rounded transition cursor-pointer"
+                                        title="Copy URL"
+                                      >
+                                        {copiedUrl === item.url ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                                      </button>
+                                      <button
+                                        onClick={() => handleOpenEditItem(item)}
+                                        className="p-1.5 text-[var(--amber)] hover:bg-[var(--amber-tint)] rounded transition cursor-pointer"
+                                        title="Edit resource link"
+                                      >
+                                        <Edit3 size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteLink(item.id)}
+                                        className="p-1.5 text-rose-400 hover:text-white hover:bg-rose-500 rounded transition cursor-pointer"
+                                        title="Delete resource link"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {/* Add Link Button at bottom of cell */}
+                                <button
+                                  onClick={() => handleOpenAddForLesson(lesson.id)}
+                                  className="w-full py-1.5 px-3 border border-dashed border-[var(--amber)]/30 hover:border-[var(--amber)] hover:bg-[var(--amber-tint)]/20 rounded-xl text-[11px] font-bold text-[var(--amber)] transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  <Plus size={13} /> Add Link to {lesson.lessonNumber}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+
+                        </tr>
+                      );
+                    });
+                  })}
                 </tbody>
               </table>
             </div>
-            {gridRows.length === 0 && (
-              <div className="p-8 text-center text-[var(--muted)] font-mono text-xs">
-                No spreadsheet rows declared yet. Click "+ Add Row" or "Paste Spreadsheet" to populate.
-              </div>
-            )}
           </div>
 
-          {/* HINTS GUIDE */}
-          <div className="bg-[var(--paper-2)] border border-[var(--line-2)] rounded-xl p-5 space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-[var(--ink)] flex items-center gap-1.5">
-              <Info size={14} className="text-[var(--amber)]" />
-              <span>How direct spreadsheet editing works</span>
-            </h4>
-            <p className="text-xs text-[var(--muted)] leading-relaxed">
-              This grid acts as a real-time, interactive table. Simply click on any input field or dropdown selection to make immediate changes. Changes are saved locally on your client machine as a preview. Once you are satisfied with the curriculum resource map, click <strong>"Save Changes"</strong> to synchronize the database with Google Firestore. All Grade 10 students will instantly see the updated directory!
+          {/* Quick Guide Box */}
+          <div className="bg-[var(--paper-2)] border border-[var(--line-2)] rounded-xl p-4 flex items-start gap-3 text-xs text-[var(--muted)]">
+            <Info size={18} className="text-[var(--amber)] shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong>Refined Cell Spreadsheet Engine:</strong> Each lesson displays its own dedicated resource cell. Click <strong>"+ Add Link"</strong> inside any lesson cell to add external videos, slides, sheets, or code references. Edits update live. Click <strong>"Save Changes"</strong> to publish directly to Grade 10 student portals!
             </p>
+          </div>
+
+        </div>
+      )}
+
+      {/* ADD / EDIT LINK MODAL DIALOG */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-[#0B0F17] border border-[#1F2937] text-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative">
+            
+            {/* Header */}
+            <div className="p-4 border-b border-[#1F2937] flex items-center justify-between bg-[#111827]">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet size={18} className="text-[var(--amber)]" />
+                <h3 className="font-bold text-sm text-white uppercase tracking-wider">
+                  {modalMode === 'add' ? 'Add Resource Link to Lesson Cell' : 'Edit Resource Link'}
+                </h3>
+              </div>
+              <button onClick={() => setShowLinkModal(false)} className="text-gray-400 hover:text-white transition cursor-pointer">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <div className="p-5 space-y-4 text-xs">
+              
+              {/* Lesson Picker */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-mono text-gray-400 uppercase font-bold">Target Lesson Cell:</label>
+                <select
+                  value={modalItem.lessonId}
+                  onChange={(e) => setModalItem({ ...modalItem, lessonId: e.target.value })}
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--amber)] cursor-pointer"
+                >
+                  {ALL_LESSONS.map(l => (
+                    <option key={l.id} value={l.id}>
+                      [{l.unitNumber}] {l.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-mono text-gray-400 uppercase font-bold">Resource Title:</label>
+                <input
+                  type="text"
+                  placeholder="e.g. AI vs ML Venn Diagram Explainer"
+                  value={modalItem.title}
+                  onChange={(e) => setModalItem({ ...modalItem, title: e.target.value })}
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--amber)]"
+                />
+              </div>
+
+              {/* Resource Type */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-mono text-gray-400 uppercase font-bold">Resource Type:</label>
+                <select
+                  value={modalItem.type}
+                  onChange={(e) => setModalItem({ ...modalItem, type: e.target.value as any })}
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--amber)] cursor-pointer"
+                >
+                  <option value="Document">📄 Document (PDF/Slides)</option>
+                  <option value="Video">🎥 Video (YouTube/Explainer)</option>
+                  <option value="Spreadsheet">📊 Spreadsheet (Excel/Google Sheets)</option>
+                  <option value="Cheat Sheet">📝 Cheat Sheet (Syntax/Code)</option>
+                  <option value="Link">🔗 Web Link (Article/Interactive)</option>
+                </select>
+              </div>
+
+              {/* Link URL */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-mono text-gray-400 uppercase font-bold">Link URL:</label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={modalItem.url}
+                  onChange={(e) => setModalItem({ ...modalItem, url: e.target.value })}
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[var(--amber)]"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-mono text-gray-400 uppercase font-bold">Brief Description:</label>
+                <textarea
+                  rows={2}
+                  placeholder="Short summary for Grade 10 students..."
+                  value={modalItem.description}
+                  onChange={(e) => setModalItem({ ...modalItem, description: e.target.value })}
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--amber)] resize-none"
+                />
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-[#111827] border-t border-[#1F2937] flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowLinkModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveModalItem}
+                className="px-5 py-2 bg-[var(--amber)] hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                <Check size={14} />
+                <span>{modalMode === 'add' ? 'Insert into Cell' : 'Update Link'}</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -719,44 +1061,35 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fadeIn">
           <div className="bg-[#0B0F17] border border-[#1F2937] text-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden relative">
             
-            {/* Header */}
             <div className="p-5 border-b border-[#1F2937] flex items-center justify-between bg-[#111827]">
               <div className="flex items-center gap-2">
-                <FileSpreadsheet size={18} className="text-[#06B6D4]" />
-                <h3 className="font-bold text-sm text-white uppercase tracking-wider">Bulk Import from Google Sheets / Excel</h3>
+                <FileSpreadsheet size={18} className="text-[var(--amber)]" />
+                <h3 className="font-bold text-sm text-white uppercase tracking-wider">Bulk Import Spreadsheet Links</h3>
               </div>
-              <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:text-white transition">
+              <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:text-white transition cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            {/* Body */}
             <div className="p-6 space-y-4">
-              
               <div className="space-y-1.5">
-                <span className="block text-[11px] font-bold text-[#06B6D4] uppercase tracking-wider">Spreadsheet copy-paste format:</span>
+                <span className="block text-[11px] font-bold text-[var(--amber)] uppercase tracking-wider">Spreadsheet copy-paste format:</span>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Open Google Sheets or Microsoft Excel. Select your cells, copy them (Ctrl+C), and paste them directly in the window below. The importer supports standard TSV (Tab Separated) and CSV formats.
+                  Copy cells from Google Sheets or Excel (Ctrl+C) and paste below. Lines are parsed automatically into lesson cells.
                 </p>
               </div>
 
-              {/* Format Columns Definition Box */}
               <div className="bg-[#111827] border border-[#1F2937] p-4 rounded-xl space-y-1">
                 <span className="block text-[10px] font-mono text-gray-400 uppercase">Columns Order Expected (5 columns):</span>
-                <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-mono text-[#06B6D4] bg-slate-900/60 p-2 rounded border border-slate-800">
+                <div className="grid grid-cols-5 gap-2 text-center text-[10px] font-mono text-[var(--amber)] bg-slate-900/60 p-2 rounded border border-slate-800">
                   <div className="p-1 border-r border-slate-800">Title</div>
                   <div className="p-1 border-r border-slate-800">Type</div>
                   <div className="p-1 border-r border-slate-800">URL Link</div>
                   <div className="p-1 border-r border-slate-800">Lesson ID</div>
                   <div className="p-1">Description</div>
                 </div>
-                <div className="mt-2 text-[10px] text-gray-400 leading-relaxed">
-                  <strong>Type matches:</strong> video, document, spreadsheet, cheat sheet, link.<br />
-                  <strong>Lesson ID matches:</strong> u1, u2, u3... (AI Foundations), s1, s2... (Systems), python-basics, etc.
-                </div>
               </div>
 
-              {/* Textarea Paste Area */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-gray-400 uppercase">Paste your Spreadsheet Rows here:</label>
                 <textarea
@@ -764,7 +1097,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                   value={bulkPasteText}
                   onChange={(e) => setBulkPasteText(e.target.value)}
                   placeholder="Intro to Neural Networks&#9;Video&#9;https://youtube.com/watch...&#9;u9&#9;Master layers and neurons"
-                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl p-3 text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-[#06B6D4] resize-none"
+                  className="w-full bg-[#111827] border border-[#1F2937] rounded-xl p-3 text-xs text-white font-mono placeholder-gray-600 focus:outline-none focus:border-[var(--amber)] resize-none"
                 />
               </div>
 
@@ -776,25 +1109,24 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               )}
             </div>
 
-            {/* Footer */}
             <div className="p-4 bg-[#111827] border-t border-[#1F2937] flex items-center justify-between">
               <button
                 onClick={downloadCSVSample}
-                className="text-xs text-gray-400 hover:text-white underline font-semibold flex items-center gap-1"
+                className="text-xs text-gray-400 hover:text-white underline font-semibold flex items-center gap-1 cursor-pointer"
               >
-                <Download size={14} /> Download Sample Template
+                <Download size={14} /> Download Sample CSV Template
               </button>
 
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowBulkModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl transition"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePasteImport}
-                  className="px-5 py-2 bg-[#06B6D4] hover:bg-[#06B6D4]/90 text-slate-950 font-bold text-xs rounded-xl transition shadow-md"
+                  className="px-5 py-2 bg-[var(--amber)] hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition shadow-md cursor-pointer"
                 >
                   Parse & Insert Rows
                 </button>

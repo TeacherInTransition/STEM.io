@@ -884,14 +884,14 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   };
 
   return (
-    <div className="flex-1 bg-[#090d16] text-gray-100 flex flex-col overflow-hidden">
+    <div className="flex-1 bg-[var(--paper)] text-[var(--ink)] flex flex-col overflow-hidden">
         {/* HUD Navigation */}
-        <header className="h-16 bg-gray-900/95 border-b border-[#1f2937] flex justify-between items-center px-6 sticky top-0 z-50 backdrop-blur-md">
+        <header className="h-16 bg-[var(--surface)] border-b border-[var(--line)] flex justify-between items-center px-6 sticky top-0 z-50 backdrop-blur-md">
             <div className="flex items-center gap-3">
                 {onBack && (
                     <button 
                         onClick={onBack}
-                        className="mr-2 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 transition-colors"
+                        className="mr-2 p-2 bg-[var(--paper-2)] hover:bg-[var(--line)] rounded-lg text-[var(--ink)] transition-colors"
                         title="Exit Builder"
                     >
                         <ArrowLeft size={20} />
@@ -902,20 +902,12 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                 </div>
                 <div>
                     <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#06B6D4]">Stemio Creator Studio</span>
-                    <span className="text-xs text-gray-400 block -mt-1">Interactive Lesson Builder & Presenter</span>
+                    <span className="text-xs text-[var(--muted)] block -mt-1">Interactive Lesson Builder & Presenter</span>
                 </div>
             </div>
             
             <div className="flex items-center gap-4">
-                <div className="bg-[#F59E0B]/10 border border-[#F59E0B]/40 rounded-full px-4 py-1.5 flex items-center gap-2 text-[#F59E0B] text-xs font-semibold">
-                    <Coins size={14} />
-                    <span>{user.stemios} Stemios Awarded</span>
-                </div>
-                <div className="bg-[#6366F1]/10 border border-[#6366F1]/40 rounded-full px-4 py-1.5 flex items-center gap-2 text-[#6366F1] text-xs font-semibold">
-                    <Flame size={14} />
-                    <span>{user.streak} Days Active 🔥</span>
-                </div>
-                <button onClick={() => setViewMode(viewMode === 'admin' ? 'preview' : 'admin')} className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-semibold rounded-full border border-[#1f2937] flex items-center gap-2 transition">
+                <button onClick={() => setViewMode(viewMode === 'admin' ? 'preview' : 'admin')} className="px-4 py-1.5 bg-[var(--paper-2)] hover:bg-[var(--surface)] text-xs font-semibold rounded-full border border-[var(--line)] text-[var(--ink)] flex items-center gap-2 transition cursor-pointer">
                     <Wand2 size={14} className="text-[#06B6D4]" />
                     <span>Toggle Admin / Preview</span>
                 </button>
@@ -924,11 +916,11 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
 
         <div className="flex-grow flex h-[calc(100vh-4rem)] overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-[300px] border-r border-[#1f2937] bg-gray-950/95 flex flex-col justify-between p-4 overflow-y-auto">
+            <aside className="w-[300px] border-r border-[var(--line)] bg-[var(--paper-2)] flex flex-col justify-between p-4 overflow-y-auto">
                 <div className="space-y-6">
-                    <div className="bg-[#111827] border border-[#1f2937] rounded-xl p-4 text-center relative overflow-hidden">
+                    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-xl p-4 text-center relative overflow-hidden">
                         <span className="text-[10px] text-[#6366F1] tracking-widest font-bold uppercase block mb-1">Level 1 Path</span>
-                        <h3 className="text-base font-bold text-white mb-2">Foundations of AI</h3>
+                        <h3 className="text-base font-bold text-[var(--ink)] mb-2">Foundations of AI</h3>
                         <div className="w-20 h-1 bg-gradient-to-r from-[#6366F1] to-[#06B6D4] mx-auto rounded"></div>
                     </div>
 

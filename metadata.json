@@ -1,6 +1,0 @@
-{
-  "name": "AI EdTech Platform",
-  "description": "Grade 10 Introduction to AI platform featuring dynamic roles, gamification, and an immersive Obsidian-Neon design.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

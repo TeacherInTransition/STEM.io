@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import AvatarRenderer, { AvatarConfig, DEFAULT_AVATAR_CONFIG } from './AvatarRenderer';
 import { 
   Shield, ChevronDown, User as UserIcon, LogOut, Settings, Flame, 
   Sun, Moon, Zap, Bell, Coins, Palette, Sparkles, Check, X, 
@@ -15,97 +16,13 @@ interface NavbarProps {
   onNavigate?: (view: string) => void;
 }
 
-export interface AvatarConfig {
-  bgColor: string;
-  headColor: string;
-  hairStyle: 'snoo' | 'spiky' | 'cap' | 'hoodie' | 'headphones';
-  accessory: 'sunglasses' | 'glasses' | 'sparkles' | 'none';
-  shirtColor: string;
-}
-
-const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
-  bgColor: '#1E293B',
-  headColor: '#FCD5CE',
-  hairStyle: 'snoo',
-  accessory: 'sunglasses',
-  shirtColor: '#06B6D4'
-};
-
-function SnooAvatar({ config, size = 30 }: { config: AvatarConfig, size?: number }) {
+function SnooAvatar({ config, size = 30 }: { config: any, size?: number }) {
   return (
     <div 
       className="relative inline-flex items-center justify-center shrink-0 rounded-full overflow-hidden border border-amber-500/40 bg-slate-900 shadow-xs" 
       style={{ width: size, height: size }}
     >
-      <svg viewBox="0 0 100 100" className="w-full h-full">
-        {/* Background */}
-        <circle cx="50" cy="50" r="50" fill={config.bgColor || '#1E293B'} />
-
-        {/* Body / Shirt */}
-        <path d="M 20 100 Q 50 62 80 100 Z" fill={config.shirtColor || '#06B6D4'} />
-
-        {/* Head */}
-        <circle cx="50" cy="48" r="26" fill={config.headColor || '#FCD5CE'} />
-
-        {/* Ears */}
-        <circle cx="22" cy="48" r="6" fill={config.headColor || '#FCD5CE'} />
-        <circle cx="78" cy="48" r="6" fill={config.headColor || '#FCD5CE'} />
-
-        {/* Eyes */}
-        <circle cx="41" cy="46" r="3.5" fill="#111827" />
-        <circle cx="59" cy="46" r="3.5" fill="#111827" />
-        <circle cx="42" cy="45" r="1" fill="#ffffff" />
-        <circle cx="60" cy="45" r="1" fill="#ffffff" />
-
-        {/* Smile */}
-        <path d="M 43 55 Q 50 62 57 55" fill="none" stroke="#111827" strokeWidth="2.5" strokeLinecap="round" />
-
-        {/* Hairstyle / Antenna / Cap */}
-        {config.hairStyle === 'snoo' && (
-          <g>
-            <path d="M 50 22 L 50 8 C 50 8 62 4 65 10" fill="none" stroke={config.headColor || '#FCD5CE'} strokeWidth="3" strokeLinecap="round" />
-            <circle cx="66" cy="10" r="5" fill="#FF4500" />
-          </g>
-        )}
-        {config.hairStyle === 'spiky' && (
-          <path d="M 30 28 Q 35 12 42 22 Q 50 8 58 22 Q 65 12 70 28 Z" fill="#F59E0B" />
-        )}
-        {config.hairStyle === 'cap' && (
-          <g>
-            <path d="M 24 40 C 24 22 76 22 76 40 Z" fill="#EF4444" />
-            <path d="M 20 40 L 80 40 C 84 40 84 44 80 44 L 20 44 Z" fill="#DC2626" />
-          </g>
-        )}
-        {config.hairStyle === 'hoodie' && (
-          <path d="M 22 25 C 20 50 80 50 78 25 C 70 15 30 15 22 25 Z" fill="#6366F1" opacity="0.85" />
-        )}
-        {config.hairStyle === 'headphones' && (
-          <g>
-            <path d="M 24 45 C 24 15 76 15 76 45" fill="none" stroke="#06B6D4" strokeWidth="4" />
-            <rect x="18" y="38" width="10" height="18" rx="4" fill="#06B6D4" />
-            <rect x="72" y="38" width="10" height="18" rx="4" fill="#06B6D4" />
-          </g>
-        )}
-
-        {/* Accessories */}
-        {config.accessory === 'sunglasses' && (
-          <g>
-            <rect x="33" y="41" width="15" height="10" rx="2" fill="#111827" />
-            <rect x="52" y="41" width="15" height="10" rx="2" fill="#111827" />
-            <line x1="48" y1="44" x2="52" y2="44" stroke="#111827" strokeWidth="2" />
-          </g>
-        )}
-        {config.accessory === 'glasses' && (
-          <g>
-            <circle cx="41" cy="46" r="7" fill="none" stroke="#06B6D4" strokeWidth="2" />
-            <circle cx="59" cy="46" r="7" fill="none" stroke="#06B6D4" strokeWidth="2" />
-            <line x1="48" y1="46" x2="52" y2="46" stroke="#06B6D4" strokeWidth="2" />
-          </g>
-        )}
-        {config.accessory === 'sparkles' && (
-          <polygon points="50,16 52,20 56,22 52,24 50,28 48,24 44,22 48,20" fill="#F59E0B" />
-        )}
-      </svg>
+      <AvatarRenderer config={config} size={size} showShadow={false} />
       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
     </div>
   );
@@ -117,10 +34,20 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
   const [unreadCount, setUnreadCount] = useState(3);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => {
+  const [avatarConfig, setAvatarConfig] = useState<any>(() => {
     const saved = localStorage.getItem('stemio_avatar_config');
     return saved ? JSON.parse(saved) : DEFAULT_AVATAR_CONFIG;
   });
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e: any) => {
+      if (e.detail) {
+        setAvatarConfig(e.detail);
+      }
+    };
+    window.addEventListener('stemio-avatar-updated', handleAvatarUpdate);
+    return () => window.removeEventListener('stemio-avatar-updated', handleAvatarUpdate);
+  }, []);
 
   const saveAvatarConfig = (newConfig: AvatarConfig) => {
     setAvatarConfig(newConfig);
@@ -363,20 +290,20 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
                 <div className="py-1 border-b border-[var(--line-2)]">
                   <button 
                     onClick={() => {
-                      setShowAvatarModal(true);
+                      if (onNavigate) onNavigate('avatar');
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs text-[var(--ink)] hover:bg-[var(--surface)] flex items-center gap-2 transition-colors font-semibold group"
+                    className="w-full text-left px-3.5 py-2.5 text-xs text-[var(--ink)] hover:bg-[var(--surface)] flex items-center gap-2 transition-colors font-semibold group cursor-pointer"
                   >
                     <Palette size={15} className="text-[#FF4500] group-hover:scale-110 transition-transform" /> 
                     <span>Customize Avatar</span>
                   </button>
                   <button 
                     onClick={() => {
-                      setShowAvatarModal(true);
+                      if (onNavigate) onNavigate('avatar');
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-3.5 py-2.5 text-xs text-[var(--ink)] hover:bg-[var(--surface)] flex items-center justify-between transition-colors group"
+                    className="w-full text-left px-3.5 py-2.5 text-xs text-[var(--ink)] hover:bg-[var(--surface)] flex items-center justify-between transition-colors group cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
                       <Shield size={15} className="text-[var(--muted)] group-hover:text-[#FF4500]" /> Stemios Shop
