@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role and economy details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["student", "teacher"] },
+        "isAdmin": { "type": "boolean" },
+        "stemios": { "type": "number" },
+        "streak": { "type": "number" }
+      },
+      "required": ["name", "email", "role", "isAdmin", "stemios", "streak"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Student activity completion record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "unitId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reward": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "unitId", "reward", "timestamp"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "A learning lesson created by teachers.",
+      "type": "object",
+      "properties": {
+        "lessonTitle": { "type": "string", "maxLength": 200 },
+        "media": {
+          "type": "object",
+          "properties": {
+            "videoUrl": { "type": "string", "maxLength": 500 }
+          }
+        },
+        "slides": {
+          "type": "array"
+        },
+        "quiz": {
+          "type": "array"
+        },
+        "authorId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lessonTitle", "authorId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection."
+    },
+    "/activities/{activityId}": {
+      "schema": "Activity",
+      "description": "Student activities log."
+    },
+    "/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Lessons collection."
+    }
+  }
+}
