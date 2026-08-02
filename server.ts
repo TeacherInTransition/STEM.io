@@ -6,6 +6,7 @@ import geminiRouter from "./src/server/routes/gemini";
 import analyticsRouter from "./src/server/routes/analytics";
 import lessonsRouter from "./src/server/routes/lessons";
 import classroomRouter from "./src/server/routes/classroom";
+import avatarRouter from "./src/server/routes/avatar";
 import { errorHandler } from "./src/server/middleware/errorHandler";
 
 async function startServer() {
@@ -19,6 +20,7 @@ async function startServer() {
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/lessons", lessonsRouter);
   app.use("/api/classroom", classroomRouter);
+  app.use("/api/avatar", avatarRouter);
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
