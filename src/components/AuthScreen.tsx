@@ -57,6 +57,11 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
         onAuthSuccess(user, "");
       }
     } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed') {
+        // Fallback to local arcade cadet session if Firebase Email/Password auth provider is disabled
+        onGuestStart(cadetName);
+        return;
+      }
       if (!isSignUp && err.code === 'auth/invalid-credential') {
          setError("Invalid Cadet Name or Password. If you are new, please register.");
       } else if (isSignUp && err.code === 'auth/email-already-in-use') {
