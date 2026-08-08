@@ -1,0 +1,6 @@
+{
+  "name": "STEM.io Arcade",
+  "description": "STEM competency learning and interactive educational arcade for Grade 10 students",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -9,13 +9,29 @@ export function useUser(firebaseUser: FirebaseUser | null) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firebaseUser) {
+    let customUid = firebaseUser?.uid;
+
+    if (!customUid) {
+      const stored = localStorage.getItem('stemio_custom_user');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.id) {
+            customUid = parsed.id;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    if (!customUid) {
       setUser(null);
       setLoading(false);
       return;
     }
 
-    const userRef = doc(db, 'users', firebaseUser.uid);
+    const userRef = doc(db, 'users', customUid);
 
     // Initial check/create
     const syncUser = async () => {
@@ -23,27 +39,38 @@ export function useUser(firebaseUser: FirebaseUser | null) {
         const snap = await getDoc(userRef);
         if (!snap.exists()) {
           const pendingCadetName = localStorage.getItem('pendingCadetName');
-          const isQuickStart = firebaseUser.email?.endsWith('@stemio.local');
-          const nameToUse = isQuickStart && pendingCadetName ? pendingCadetName : (firebaseUser.displayName || 'New User');
+          const pendingPassword = localStorage.getItem('pendingPassword');
+          const isQuickStart = firebaseUser?.email?.endsWith('@stemio.local');
+          const nameToUse = (isQuickStart && pendingCadetName) ? pendingCadetName : (firebaseUser?.displayName || 'New User');
           
           if (isQuickStart && pendingCadetName) {
-              localStorage.removeItem('pendingCadetName');
+            localStorage.removeItem('pendingCadetName');
           }
 
           const newUser: User = {
-            id: firebaseUser.uid,
+            id: customUid!,
             name: nameToUse,
-            email: firebaseUser.email || '',
-            role: firebaseUser.email === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
-            isAdmin: firebaseUser.email === 'laankanom2018@gmail.com',
+            email: firebaseUser?.email || '',
+            password: pendingPassword || '',
+            role: firebaseUser?.email === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
+            isAdmin: firebaseUser?.email === 'laankanom2018@gmail.com',
             stemios: 100, // Starting bonus
-            streak: 0
+            streak: 0,
+            completedQuizzes: [],
+            completedLessons: []
           };
-          await setDoc(userRef, newUser);
+          await setDoc(userRef, newUser, { merge: true });
           setUser(newUser);
+          localStorage.setItem('stemio_custom_user', JSON.stringify(newUser));
+        } else {
+          const data = snap.data() as User;
+          setUser(data);
+          localStorage.setItem('stemio_custom_user', JSON.stringify(data));
         }
       } catch (err) {
         console.error('Error syncing user:', err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -54,12 +81,12 @@ export function useUser(firebaseUser: FirebaseUser | null) {
       if (snap.exists()) {
         const userData = snap.data() as User;
         if (userData.email === 'laankanom2018@gmail.com' && !userData.isAdmin) {
-            // Force admin mode
-            userData.isAdmin = true;
-            userData.role = 'teacher';
-            setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true });
+          userData.isAdmin = true;
+          userData.role = 'teacher';
+          setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true });
         }
         setUser(userData);
+        localStorage.setItem('stemio_custom_user', JSON.stringify(userData));
       }
       setLoading(false);
     });

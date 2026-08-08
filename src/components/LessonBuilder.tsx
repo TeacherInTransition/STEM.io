@@ -1037,12 +1037,28 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                         <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl shadow-xl min-h-[480px] max-h-[85vh] flex flex-col relative overflow-hidden shrink-0">
                             <div className="p-8 space-y-6 overflow-y-auto flex-grow custom-scrollbar">
                                 <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="bg-[#6366F1]/10 text-[#6366F1] text-xs font-bold px-3 py-1 rounded-full uppercase">
-                                            Slide {currentSlideIndex + 1} of {activeLesson?.slides.length}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="bg-[#6366F1] text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-xs">
+                                            Slide {currentSlideIndex + 1} of {activeLesson?.slides?.length || 1}
                                         </span>
+                                        {/* Quick Slide Selector Pill Buttons */}
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            {activeLesson?.slides?.map((_: any, idx: number) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setCurrentSlideIndex(idx)}
+                                                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition ${
+                                                        idx === currentSlideIndex 
+                                                            ? 'bg-[#6366F1] text-white shadow-xs' 
+                                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    Slide {idx + 1}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">{activeLesson?.lessonTitle}</span>
+                                    <span className="text-xs text-gray-700 font-extrabold uppercase tracking-wider">{activeLesson?.lessonTitle}</span>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1437,41 +1453,64 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                                 </div>
                                 
                                 <div className="space-y-3 bg-[#111827] border border-[#1f2937] p-4 rounded-xl">
-                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-[#1f2937]">
-                                        <span className="text-xs font-bold text-gray-400 uppercase">Slide {currentSlideIndex + 1} of {activeLesson?.slides.length}</span>
-                                        <button 
-                                            onClick={() => {
-                                                const currentSlidesCount = activeLesson?.slides.length || 0;
-                                                const expectedNewLength = currentSlidesCount <= 1 ? 1 : currentSlidesCount - 1;
-                                                let newIndex = currentSlideIndex >= expectedNewLength ? Math.max(0, expectedNewLength - 1) : currentSlideIndex;
-                                                
-                                                setLessonCatalog((prev: any) => {
-                                                    const updated = { ...prev };
-                                                    const newSlides = [...updated[activeLessonId].slides];
-                                                    newSlides.splice(currentSlideIndex, 1);
+                                    <div className="space-y-2 mb-2 pb-2 border-b border-[#1f2937]">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-black text-white uppercase tracking-wider">
+                                                Editing: <span className="text-[#06B6D4]">Slide {currentSlideIndex + 1} of {activeLesson?.slides?.length || 1}</span>
+                                            </span>
+                                            <button 
+                                                onClick={() => {
+                                                    const currentSlidesCount = activeLesson?.slides.length || 0;
+                                                    const expectedNewLength = currentSlidesCount <= 1 ? 1 : currentSlidesCount - 1;
+                                                    let newIndex = currentSlideIndex >= expectedNewLength ? Math.max(0, expectedNewLength - 1) : currentSlideIndex;
                                                     
-                                                    // Re-index slide numbers
-                                                    newSlides.forEach((slide, idx) => {
-                                                        slide.slideNumber = idx + 1;
-                                                    });
+                                                    setLessonCatalog((prev: any) => {
+                                                        const updated = { ...prev };
+                                                        const newSlides = [...updated[activeLessonId].slides];
+                                                        newSlides.splice(currentSlideIndex, 1);
+                                                        
+                                                        // Re-index slide numbers
+                                                        newSlides.forEach((slide, idx) => {
+                                                            slide.slideNumber = idx + 1;
+                                                        });
 
-                                                    if (newSlides.length === 0) {
-                                                        newSlides.push({ slideNumber: 1, title: 'New Slide', content: '', imageUrl: '' });
-                                                    }
-                                                    
-                                                    updated[activeLessonId] = {
-                                                        ...updated[activeLessonId],
-                                                        slides: newSlides
-                                                    };
-                                                    
-                                                    return updated;
-                                                });
-                                                setCurrentSlideIndex(newIndex);
-                                            }}
-                                            className="text-xs text-red-400 hover:text-red-300 transition"
-                                        >
-                                            Delete Slide
-                                        </button>
+                                                        if (newSlides.length === 0) {
+                                                            newSlides.push({ slideNumber: 1, title: 'New Slide', content: '', imageUrl: '' });
+                                                        }
+                                                        
+                                                        updated[activeLessonId] = {
+                                                            ...updated[activeLessonId],
+                                                            slides: newSlides
+                                                        };
+                                                        
+                                                        return updated;
+                                                    });
+                                                    setCurrentSlideIndex(newIndex);
+                                                }}
+                                                className="text-[11px] font-bold text-red-400 hover:text-red-300 transition"
+                                                title="Delete this slide"
+                                            >
+                                                Delete Slide
+                                            </button>
+                                        </div>
+
+                                        {/* Slide Selector Dropdown */}
+                                        {activeLesson?.slides && activeLesson.slides.length > 0 && (
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <span className="text-[10px] font-bold uppercase text-gray-400">Jump To:</span>
+                                                <select
+                                                    value={currentSlideIndex}
+                                                    onChange={(e) => setCurrentSlideIndex(Number(e.target.value))}
+                                                    className="flex-1 bg-gray-900 border border-[#1f2937] text-white text-xs font-semibold rounded-md p-1 focus:outline-none focus:border-[#06B6D4]"
+                                                >
+                                                    {activeLesson.slides.map((s: any, idx: number) => (
+                                                        <option key={idx} value={idx}>
+                                                            Slide {idx + 1}: {s.title ? (s.title.length > 25 ? s.title.substring(0, 25) + '...' : s.title) : `Slide ${idx + 1}`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-400 uppercase mb-1">Slide Title</label>

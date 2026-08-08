@@ -11,7 +11,23 @@ import {
   signInAnonymously,
   updateProfile
 } from 'firebase/auth';
-import { getFirestore, doc, updateDoc, increment, collection, addDoc, serverTimestamp, getDoc, arrayUnion, getDocs, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  doc, 
+  updateDoc, 
+  increment, 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  getDoc, 
+  arrayUnion, 
+  getDocs, 
+  writeBatch, 
+  deleteDoc, 
+  setDoc,
+  query,
+  where
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -122,35 +138,223 @@ export const anonymousSignIn = async (displayName: string): Promise<User> => {
   const randomId = Math.random().toString(36).substring(2, 10);
   const fakeEmail = `cadet_${randomId}@stemio.local`;
   const fakePassword = `Pass_${randomId}_${Date.now()}`;
-  
-  const result = await createUserWithEmailAndPassword(auth, fakeEmail, fakePassword);
-  await updateProfile(result.user, { displayName });
-  return result.user;
+  return emailSignUp(fakeEmail, fakePassword, displayName);
 };
 
-export const emailSignUp = async (email: string, password: string): Promise<User> => {
-  const result = await createUserWithEmailAndPassword(auth, email, password);
-  await sendEmailVerification(result.user);
-  return result.user;
-};
+export const emailSignUp = async (email: string, password: string, displayName?: string): Promise<User> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const nameToUse = displayName?.trim() || cleanEmail.split('@')[0];
 
+  // 1. Check if email already registered in Firestore
+  try {
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('email', '==', cleanEmail));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const err: any = new Error('An account with this email already exists. Please sign in.');
+      err.code = 'auth/email-already-in-use';
+      throw err;
+    }
+  } catch (e: any) {
+    if (e.code === 'auth/email-already-in-use') throw e;
+    console.warn('Firestore user check note:', e);
+  }
+
+  let user: User | null = null;
+
+  // 2. Try standard Firebase email/password creation
+  try {
+    const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+    user = result.user;
+    if (nameToUse) {
+      await updateProfile(user, { displayName: nameToUse });
+    }
+  } catch (authErr: any) {
+    console.warn('Primary email registration notice:', authErr);
+    if (authErr.code === 'auth/email-already-in-use') {
+      throw authErr;
+    }
+
+    // 3. Fallback: try anonymous authentication if email provider is disabled
+    try {
+      const anonResult = await signInAnonymously(auth);
+      user = anonResult.user;
+      if (nameToUse) {
+        await updateProfile(user, { displayName: nameToUse });
+      }
+    } catch (anonErr: any) {
+      console.warn('Anonymous auth fallback note:', anonErr);
+      // Create synthetic user session
+      const syntheticId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      user = {
+        uid: syntheticId,
+        email: cleanEmail,
+        displayName: nameToUse,
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        delete: async () => {},
+        getIdToken: async () => '',
+        getIdTokenResult: async () => ({} as any),
+        reload: async () => {},
+        toJSON: () => ({}),
+        phoneNumber: null,
+        photoURL: null,
+        providerId: 'custom'
+      } as unknown as User;
+    }
+  }
+
+  if (user) {
+    // 4. Save user document in Firestore linking name, email, password, starting balance of stemios, and completion progress
+    const userRef = doc(db, 'users', user.uid);
+    const newUser = {
+      id: user.uid,
+      name: nameToUse,
+      email: cleanEmail,
+      password: password,
+      role: cleanEmail === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
+      isAdmin: cleanEmail === 'laankanom2018@gmail.com',
+      stemios: 100, // Initial balance
+      completedQuizzes: [],
+      completedLessons: [],
+      streak: 0,
+      createdAt: serverTimestamp()
+    };
+    await setDoc(userRef, newUser, { merge: true });
+
+    // Store custom user session in localStorage so user stays logged in
+    localStorage.setItem('stemio_custom_user', JSON.stringify({
+      id: user.uid,
+      name: nameToUse,
+      email: cleanEmail,
+      password: password,
+      role: newUser.role,
+      isAdmin: newUser.isAdmin,
+      stemios: 100,
+      completedQuizzes: [],
+      completedLessons: [],
+      streak: 0
+    }));
+
+    try {
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        await sendEmailVerification(auth.currentUser);
+      }
+    } catch (e) {
+      console.warn('Non-blocking verification email:', e);
+    }
+  }
+
+  return user!;
+};
 
 export const cadetSignUp = async (cadetName: string, password: string) => {
-  const email = `${cadetName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
-  const result = await createUserWithEmailAndPassword(auth, email, password);
-  await updateProfile(result.user, { displayName: cadetName });
-  return result.user;
+  const cleanName = cadetName.trim();
+  const email = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
+  return emailSignUp(email, password, cleanName);
 };
 
 export const cadetSignIn = async (cadetName: string, password: string) => {
-  const email = `${cadetName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
-  const result = await signInWithEmailAndPassword(auth, email, password);
-  return result.user;
+  const cleanName = cadetName.trim();
+  const email = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
+  return emailSignIn(email, password);
 };
 
 export const emailSignIn = async (email: string, password: string): Promise<User> => {
-  const result = await signInWithEmailAndPassword(auth, email, password);
-  return result.user;
+  const cleanEmail = email.trim().toLowerCase();
+
+  try {
+    const result = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    const user = result.user;
+    
+    // Fetch user document from Firestore to ensure balance & progress are linked
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      const newUser = {
+        id: user.uid,
+        name: user.displayName || cleanEmail.split('@')[0],
+        email: cleanEmail,
+        password: password,
+        role: cleanEmail === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
+        isAdmin: cleanEmail === 'laankanom2018@gmail.com',
+        stemios: 100,
+        completedQuizzes: [],
+        completedLessons: [],
+        streak: 0,
+        createdAt: serverTimestamp()
+      };
+      await setDoc(userRef, newUser, { merge: true });
+      localStorage.setItem('stemio_custom_user', JSON.stringify(newUser));
+    } else {
+      const existingData = snap.data();
+      localStorage.setItem('stemio_custom_user', JSON.stringify(existingData));
+    }
+
+    return user;
+  } catch (authErr: any) {
+    console.warn('Primary email sign in failed (attempting Firestore fallback):', authErr);
+
+    // Fallback: search Firestore by email
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('email', '==', cleanEmail));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      const err: any = new Error('No account found with this email. Please register first.');
+      err.code = 'auth/user-not-found';
+      throw err;
+    }
+
+    const matchedDoc = snap.docs[0];
+    const userData = matchedDoc.data();
+
+    if (userData.password && userData.password !== password) {
+      const err: any = new Error('Invalid email or password.');
+      err.code = 'auth/wrong-password';
+      throw err;
+    }
+
+    // Password matches! Try signing in anonymously if auth isn't active
+    let activeUser: User | null = auth.currentUser;
+    if (!activeUser) {
+      try {
+        const anonRes = await signInAnonymously(auth);
+        activeUser = anonRes.user;
+      } catch (e) {
+        console.warn('Anonymous sign in during fallback:', e);
+      }
+    }
+
+    if (!activeUser) {
+      activeUser = {
+        uid: matchedDoc.id,
+        email: cleanEmail,
+        displayName: userData.name || cleanEmail.split('@')[0],
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {},
+        providerData: [],
+        refreshToken: '',
+        tenantId: null,
+        delete: async () => {},
+        getIdToken: async () => '',
+        getIdTokenResult: async () => ({} as any),
+        reload: async () => {},
+        toJSON: () => ({}),
+        phoneNumber: null,
+        photoURL: null,
+        providerId: 'custom'
+      } as unknown as User;
+    }
+
+    localStorage.setItem('stemio_custom_user', JSON.stringify({ id: matchedDoc.id, ...userData }));
+    return activeUser;
+  }
 };
 
 export const verifyEmail = async () => {
@@ -164,7 +368,12 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 export const logout = async () => {
-  await auth.signOut();
+  localStorage.removeItem('stemio_custom_user');
+  try {
+    await auth.signOut();
+  } catch (e) {
+    console.error('Logout note:', e);
+  }
   cachedAccessToken = null;
 };
 

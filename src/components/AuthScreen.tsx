@@ -57,11 +57,6 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
         onAuthSuccess(user, "");
       }
     } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed') {
-        // Fallback to local arcade cadet session if Firebase Email/Password auth provider is disabled
-        onGuestStart(cadetName);
-        return;
-      }
       if (!isSignUp && err.code === 'auth/invalid-credential') {
          setError("Invalid Cadet Name or Password. If you are new, please register.");
       } else if (isSignUp && err.code === 'auth/email-already-in-use') {
@@ -76,19 +71,37 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'signup' && !cadetName.trim()) {
+      setError("Please enter your Cadet Name / Full Name.");
+      return;
+    }
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
     setIsLoggingIn(true);
     setError(null);
     try {
+      localStorage.setItem('pendingPassword', password);
       if (mode === 'signup') {
-        const user = await emailSignUp(email, password);
+        localStorage.setItem('pendingCadetName', cadetName.trim());
+        const user = await emailSignUp(email, password, cadetName.trim());
         onAuthSuccess(user, "");
-        setVerificationSent(true);
       } else {
         const user = await emailSignIn(email, password);
         onAuthSuccess(user, "");
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      if (err.code === 'auth/email-already-in-use') {
+        setError("An account with this email already exists. Please sign in.");
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError("Invalid email or password.");
+      } else if (err.code === 'auth/weak-password') {
+        setError("Password should be at least 6 characters.");
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -102,56 +115,6 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
       setError(err.message || 'Failed to resend verification');
     }
   };
-
-  const isQuickStartUser = firebaseUser?.email?.endsWith('@stemio.local');
-
-  if (firebaseUser && !firebaseUser.emailVerified && !isQuickStartUser) {
-    return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--paper)] text-[var(--ink)] p-6 text-center">
-        <div className="max-w-md w-full space-y-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-black tracking-tighter ledger-title">
-              Verification <span className="highlight-made">Required</span>
-            </h1>
-            <p className="text-[var(--ink-soft)] font-medium">Please verify your email to continue.</p>
-          </div>
-
-          <div className="p-8 bg-[var(--paper-2)] border border-[var(--line)] rounded-2xl shadow-xl space-y-6">
-            <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-full bg-[var(--amber-tint)] flex items-center justify-center text-[var(--amber)]">
-                <Mail className="w-10 h-10" />
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold">Check your inbox</h2>
-              <p className="text-sm text-[var(--muted)]">
-                We've sent a verification link to <span className="font-bold text-[var(--ink)]">{firebaseUser.email}</span>. 
-                Please click the link to activate your account.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full flex items-center justify-center gap-2 bg-[var(--amber)] text-[var(--paper)] font-bold py-3 px-6 rounded-xl hover:bg-[var(--amber-bright)] transition-all"
-              >
-                I've verified my email
-              </button>
-              
-              <button
-                onClick={handleResendVerification}
-                disabled={verificationSent}
-                className="w-full text-sm font-medium text-[var(--muted)] hover:text-[var(--amber)] transition-colors disabled:opacity-50"
-              >
-                {verificationSent ? 'Verification email sent!' : 'Resend verification email'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--paper)] text-[var(--ink)] p-6 text-center overflow-y-auto">
@@ -171,10 +134,37 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
           </div>
           
           <div className="space-y-1 text-center">
-            <h2 className="text-xl font-bold">{mode === 'quick' ? 'Enter the Arcade' : mode === 'login' ? 'Welcome Back, Cadet' : 'Create Your Identity'}</h2>
+            <h2 className="text-xl font-bold">
+              {mode === 'quick' ? 'Enter the Arcade' : mode === 'login' ? 'Welcome Back, Cadet' : 'Register New Cadet Identity'}
+            </h2>
             <p className="text-xs text-[var(--muted)]">
-              {mode === 'quick' ? 'No email required. Start earning Stemios instantly.' : mode === 'login' ? 'Sign in to sync your progress.' : 'Join the elite ranks of STEM explorers.'}
+              {mode === 'quick' ? 'No email required. Start earning Stemios instantly.' : mode === 'login' ? 'Sign in to sync your progress.' : 'Create your email account to link credentials & balance.'}
             </p>
+          </div>
+
+          {/* Mode Selector Tabs */}
+          <div className="flex rounded-xl bg-[var(--paper)] p-1 border border-[var(--line)] text-xs font-bold text-center">
+            <button
+              type="button"
+              onClick={() => { setMode('quick'); setError(null); }}
+              className={`flex-1 py-1.5 rounded-lg transition-all ${mode === 'quick' ? 'bg-[var(--amber)] text-white shadow-xs' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
+            >
+              Quick Passcode
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(null); }}
+              className={`flex-1 py-1.5 rounded-lg transition-all ${mode === 'login' ? 'bg-[var(--amber)] text-white shadow-xs' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
+            >
+              Email Login
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setError(null); }}
+              className={`flex-1 py-1.5 rounded-lg transition-all ${mode === 'signup' ? 'bg-[var(--amber)] text-white shadow-xs' : 'text-[var(--muted)] hover:text-[var(--ink)]'}`}
+            >
+              Register Email
+            </button>
           </div>
 
           {mode === 'quick' ? (
@@ -238,6 +228,23 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
             </form>
           ) : (
             <form onSubmit={handleEmailAuth} className="space-y-4">
+              {mode === 'signup' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--muted)] ml-1">Cadet Name / Full Name</label>
+                  <div className="relative">
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="E.g. Alex Smith"
+                      className="w-full bg-[var(--paper)] border border-[var(--line)] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-[var(--amber)] focus:ring-1 focus:ring-[var(--amber)] transition-all outline-none"
+                      value={cadetName}
+                      onChange={(e) => setCadetName(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--muted)] ml-1">Email Terminal</label>
                 <div className="relative">
@@ -254,7 +261,7 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--muted)] ml-1">Access Key</label>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--muted)] ml-1">Access Key (Password)</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted)]" />
                   <input
@@ -277,29 +284,17 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full flex items-center justify-center gap-2 bg-[var(--ink)] text-[var(--paper)] font-bold py-3 px-6 rounded-xl hover:bg-black transition-all transform active:scale-95 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 bg-[var(--ink)] text-[var(--paper)] font-bold py-3 px-6 rounded-xl hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {mode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                {isLoggingIn ? 'Processing...' : (mode === 'login' ? 'Initialize Login' : 'Register Identity')}
+                {isLoggingIn ? 'Processing...' : (mode === 'login' ? 'Sign In with Email' : 'Register New Email Account')}
               </button>
             </form>
           )}
-
-          <button
-            onClick={() => {
-              if (mode === 'quick') setMode('login');
-              else if (mode === 'login') setMode('signup');
-              else setMode('quick');
-            }}
-            className="w-full text-xs font-bold text-[var(--amber)] hover:underline flex items-center justify-center gap-1.5"
-          >
-            {mode === 'quick' ? "Have an account? Sign in with Email" : mode === 'login' ? "Don't have an account? Sign up" : "Back to Quick Start"}
-            <ArrowRight className="w-3 h-3" />
-          </button>
         </div>
 
         <p className="text-[10px] uppercase tracking-widest text-[var(--muted)] font-mono">
-          Encrypted & Secure • Powered by Firebase
+          Encrypted &amp; Secure • Powered by Firebase
         </p>
       </div>
     </div>

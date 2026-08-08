@@ -4,11 +4,14 @@ import {
   Search, Plus, Trash2, CheckCircle2, FileText, Video, ExternalLink, 
   FileSpreadsheet, AlertTriangle, Download, Upload, Database, BookOpen, 
   Sparkles, BookMarked, RefreshCw, Sliders, X, Info, Coins, HelpCircle,
-  TrendingUp, Check, ChevronRight, FileCode, Edit3, Copy, Layers, Filter
+  TrendingUp, Check, ChevronRight, FileCode, Edit3, Copy, Layers, Filter,
+  FolderPlus, Award, Eye, Target
 } from 'lucide-react';
 import { curriculum } from '../curriculumData';
 import { aiFoundationsCurriculum } from '../aiFoundationsData';
 import { ResourceItem, fetchResourcesFromDb, saveResourcesToDb, awardStemios } from '../lib/firebase';
+import { calculateLearningMetrics, generateCompetencyRubric } from '../utils/milestonesAndRubrics';
+import RubricEvaluationCard from './RubricEvaluationCard';
 
 interface ResourcesPageProps {
   user: User;
@@ -192,9 +195,26 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
     }
   };
 
+  // Safely format external URLs to guarantee valid https protocol
+  const formatUrl = (url: string): string => {
+    if (!url) return '#';
+    const trimmed = url.trim();
+    if (!/^https?:\/\//i.test(trimmed)) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
   // Student marks a resource as opened/completed
   const handleResourceOpen = async (resource: ResourceItem) => {
-    window.open(resource.url, '_blank', 'noopener,noreferrer');
+    const formatted = formatUrl(resource.url);
+    if (formatted && formatted !== '#') {
+      try {
+        window.open(formatted, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        console.error('Error opening window:', e);
+      }
+    }
 
     if (completedResources.includes(resource.id)) return;
 
@@ -251,6 +271,34 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
     const completedCount = resources.filter(r => completedResources.includes(r.id)).length;
     return Math.round((completedCount / resources.length) * 100);
   }, [resources, completedResources]);
+
+  // Separate Variable: % of resources added/linked to lessons
+  const resourcesAddedToLessonsCount = useMemo(() => {
+    return resources.filter(r => Boolean(r.lessonId) && r.lessonId !== 'general' && r.lessonId !== 'unassigned').length;
+  }, [resources]);
+
+  const resourcesAddedToLessonsPct = useMemo(() => {
+    if (resources.length === 0) return 0;
+    return Math.round((resourcesAddedToLessonsCount / resources.length) * 100);
+  }, [resources, resourcesAddedToLessonsCount]);
+
+  // Learning Metrics & Competency Rubric Evaluation
+  const learningMetrics = useMemo(() => {
+    return calculateLearningMetrics(
+      ['u1-l1', 'u1-l2', 'u2-l1'],
+      ['Unit 1'],
+      completedResources,
+      resources,
+      12,
+      5
+    );
+  }, [completedResources, resources]);
+
+  const rubric = useMemo(() => {
+    return generateCompetencyRubric(learningMetrics);
+  }, [learningMetrics]);
+
+  const [showRubricView, setShowRubricView] = useState(false);
 
   // Dynamically compute Unit list including any custom unmapped lessons
   const displayUnits = useMemo(() => {
@@ -466,7 +514,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
   };
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto p-6 space-y-6 animate-fadeIn" style={{ backgroundColor: 'transparent' }}>
+    <div className="flex-1 w-full max-w-7xl mx-auto p-3 sm:p-6 space-y-6 animate-fadeIn" style={{ backgroundColor: 'transparent' }}>
       
       {/* Toast Notification */}
       {rewardMessage && (
@@ -513,38 +561,54 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
       {activeTab === 'browse' || !user.isAdmin ? (
         <>
           {/* STUDENT PROGRESS & STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             
+            {/* 1. Resource Open Rate */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Resource Completion</span>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Resource Open Rate</span>
                 <div className="text-xl font-bold text-[var(--ink)] flex items-baseline gap-1">
                   <span>{completionPercentage}%</span>
                   <span className="text-[11px] text-[var(--muted)] font-normal">({resources.filter(r => completedResources.includes(r.id)).length}/{resources.length} read)</span>
                 </div>
               </div>
-              <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+              <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="32" cy="32" r="26" fill="none" stroke="var(--line-2)" strokeWidth="4" />
+                  <circle cx="28" cy="28" r="22" fill="none" stroke="var(--line-2)" strokeWidth="4" />
                   <circle 
-                    cx="32" 
-                    cy="32" 
-                    r="26" 
+                    cx="28" 
+                    cy="28" 
+                    r="22" 
                     fill="none" 
                     stroke="var(--amber)" 
                     strokeWidth="4" 
-                    strokeDasharray={163.36}
-                    strokeDashoffset={163.36 - (163.36 * Math.min(completionPercentage, 100)) / 100}
+                    strokeDasharray={138.23}
+                    strokeDashoffset={138.23 - (138.23 * Math.min(completionPercentage, 100)) / 100}
                     className="transition-all duration-700 ease-out"
                   />
                 </svg>
-                <div className="absolute font-mono text-xs font-bold text-[var(--amber)]">{completionPercentage}%</div>
+                <div className="absolute font-mono text-[11px] font-bold text-[var(--amber)]">{completionPercentage}%</div>
               </div>
             </div>
 
+            {/* 2. Key Variable: % of Resources Added to Lessons */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Active Rewards Remaining</span>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">% Resources in Lessons</span>
+                <div className="text-xl font-bold text-[#06B6D4] flex items-baseline gap-1">
+                  <span>{resourcesAddedToLessonsPct}%</span>
+                  <span className="text-[11px] text-[var(--muted)] font-normal">({resourcesAddedToLessonsCount}/{resources.length} mapped)</span>
+                </div>
+              </div>
+              <div className="p-3 bg-[#06B6D4]/10 rounded-lg text-[#06B6D4]">
+                <FolderPlus size={20} />
+              </div>
+            </div>
+
+            {/* 3. Active Rewards Remaining */}
+            <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Rewards Available</span>
                 <div className="text-xl font-bold text-[var(--amber)] flex items-center gap-1.5">
                   <Coins size={18} className="text-[var(--amber)]" />
                   <span>{(resources.length - resources.filter(r => completedResources.includes(r.id)).length) * 5} Stemios</span>
@@ -555,18 +619,35 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
               </div>
             </div>
 
+            {/* 4. Curriculum Competency Rating */}
             <div className="bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Core Integration</span>
-                <div className="text-xl font-bold text-[var(--ink)]">
-                  <span>Fully MUIDS-Aligned</span>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[var(--muted)]">Competency Rubric</span>
+                <div className="text-sm font-bold text-[#6366F1] flex items-center gap-1">
+                  <Award size={16} />
+                  <span>{rubric.tierLabel} ({rubric.totalScore}/16 Pts)</span>
                 </div>
               </div>
-              <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
-                <TrendingUp size={20} />
-              </div>
+              <button 
+                onClick={() => setShowRubricView(!showRubricView)}
+                className="px-3 py-1.5 bg-[#6366F1] hover:bg-[#6366F1]/90 text-white text-xs font-bold rounded-lg transition"
+              >
+                {showRubricView ? 'Hide Rubric' : 'View Rubric'}
+              </button>
             </div>
           </div>
+
+          {/* Competency & Evaluation Rubric Drawer/Card */}
+          {showRubricView && (
+            <div className="animate-fadeIn">
+              <RubricEvaluationCard 
+                metrics={learningMetrics} 
+                rubric={rubric} 
+                title="Curriculum Competency & Evaluation Rubric"
+                subtitle="Evaluation framework linked to lesson/unit completion, higher resource open rates, and % of resources added to lessons."
+              />
+            </div>
+          )}
 
           {/* FILTERS & SEARCH ROW */}
           <div className="flex flex-col md:flex-row gap-4 bg-[var(--paper-2)] border border-[var(--line-2)] p-4 rounded-xl">
@@ -640,11 +721,13 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredResources.map(res => {
                 const isCompleted = completedResources.includes(res.id);
+                const targetUrl = formatUrl(res.url);
+
                 return (
                   <div 
                     key={res.id}
                     id={`resource-card-${res.id}`}
-                    className="bg-[var(--paper-2)] border border-[var(--line-2)] hover:border-[var(--amber)]/30 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-[1px] relative group"
+                    className="bg-[var(--paper-2)] border border-[var(--line-2)] hover:border-[var(--amber)]/50 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md relative group"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3.5 gap-2">
@@ -658,22 +741,31 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                         </span>
                       </div>
 
-                      <h3 className="text-sm font-bold text-[var(--ink)] group-hover:text-[var(--amber)] transition-colors line-clamp-1 mb-1.5">
+                      <a
+                        href={targetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => handleResourceOpen(res)}
+                        className="text-sm font-bold text-[var(--ink)] group-hover:text-[var(--amber)] hover:underline transition-colors line-clamp-1 mb-1.5 block cursor-pointer"
+                      >
                         {res.title}
-                      </h3>
+                      </a>
                       <p className="text-xs text-[var(--muted)] leading-relaxed line-clamp-3 mb-4 h-[54px]">
                         {res.description}
                       </p>
                     </div>
 
                     <div className="border-t border-[var(--line-2)] pt-3.5 mt-2 flex items-center justify-between gap-2">
-                      <span className="text-[10px] text-[var(--muted)] font-mono">
+                      <span className="text-[10px] text-[var(--muted)] font-mono truncate max-w-[140px]">
                         Linked: <strong className="text-[var(--ink-soft)] font-normal">{getLessonName(res.lessonId)}</strong>
                       </span>
                       
-                      <button
+                      <a
+                        href={targetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => handleResourceOpen(res)}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                           isCompleted 
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                             : 'bg-[var(--amber-tint)] hover:bg-[var(--amber)]/20 text-[var(--amber)] border border-[var(--amber)]/20'
@@ -690,7 +782,7 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                             <ExternalLink size={13} />
                           </>
                         )}
-                      </button>
+                      </a>
                     </div>
                   </div>
                 );
@@ -870,10 +962,10 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
                                         </div>
                                         
                                         <a 
-                                          href={item.url} 
+                                          href={formatUrl(item.url)} 
                                           target="_blank" 
-                                          rel="noreferrer"
-                                          className="text-[11px] font-mono text-blue-400 hover:underline truncate block max-w-md"
+                                          rel="noopener noreferrer"
+                                          className="text-[11px] font-mono text-blue-500 hover:underline truncate block max-w-md"
                                         >
                                           {item.url}
                                         </a>

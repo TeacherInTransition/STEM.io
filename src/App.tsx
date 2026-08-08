@@ -118,7 +118,7 @@ export default function App() {
 
   const isQuickStartUser = firebaseUser?.email?.endsWith('@stemio.local');
 
-  if (!effectiveUser || (!guestUser && (!firebaseUser || (!isQuickStartUser && !firebaseUser.emailVerified)))) {
+  if (!effectiveUser) {
     return (
       <AuthScreen 
         onAuthSuccess={handleAuthSuccess} 

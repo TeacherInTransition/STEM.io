@@ -4,36 +4,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  password?: string;
   role: Role;
   isAdmin: boolean;
   stemios: number;
   streak: number;
-}
-
-export interface ResourceItem {
-  id: string;
-  title: string;
-  type: 'Video' | 'Document' | 'Link' | 'Spreadsheet' | 'Cheat Sheet';
-  url: string;
-  lessonId: string;
-  description: string;
-}
-
-export interface ActivityLog {
-  id?: string;
-  userId: string;
-  unitId: string;
-  reward: number;
-  timestamp: unknown;
-}
-
-export interface Quest {
-  id: string;
-  title: string;
-  reward: number;
-  completed: boolean;
-  progress?: number;
-  maxProgress?: number;
+  completedQuizzes?: string[];
+  completedLessons?: string[];
 }
 
 // Admin Live-Editing Runtime Engine Config

@@ -3,8 +3,8 @@ import { User } from '../types';
 import AvatarRenderer, { AvatarConfig, DEFAULT_AVATAR_CONFIG } from './AvatarRenderer';
 import { 
   Shield, ChevronDown, User as UserIcon, LogOut, Settings, Flame, 
-  Sun, Moon, Zap, Bell, Coins, Palette, Sparkles, Check, X, 
-  ExternalLink, Lightbulb, Shirt, Smile, CheckCircle2 
+  Sun, Moon, Zap, Bell, Coins, Palette, Sparkles, Check, X, Menu,
+  ExternalLink, Lightbulb, Shirt, Smile, CheckCircle2, BookOpen, Layers, Trophy
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -31,6 +31,7 @@ function SnooAvatar({ config, size = 30 }: { config: any, size?: number }) {
 export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogout, activeView = 'arcade', onNavigate }: NavbarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
@@ -86,20 +87,34 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
 
   return (
     <>
-      <nav className="stemios-hud h-[64px] flex items-center justify-between px-6 shrink-0 transition-colors duration-300">
+      <nav className="stemios-hud h-[64px] flex items-center justify-between px-3 md:px-6 shrink-0 transition-colors duration-300 relative z-40">
         {/* LEFT: Logo & Identity */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 md:gap-6">
+          {/* Mobile Hamburger Menu Button */}
+          <button
+            onClick={() => {
+              setIsMobileMenuOpen(!isMobileMenuOpen);
+              setIsNotificationsOpen(false);
+              setIsDropdownOpen(false);
+            }}
+            className="md:hidden p-1.5 rounded-lg text-[var(--ink)] hover:bg-[var(--surface)] transition-colors focus:outline-none"
+            aria-label="Toggle navigation menu"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
           <div className="flex items-center cursor-pointer" onClick={() => onNavigate && onNavigate('arcade')}>
             <img 
               src="https://muids.mahidol.ac.th/wp-content/uploads/2026/07/logo-muids-scaled-300x77.png" 
               alt="MUIDS Logo" 
-              className={`h-8 w-auto object-contain transition-all duration-300 ${lightMode ? 'brightness-0 opacity-80' : ''}`} 
+              className={`h-6 sm:h-8 w-auto object-contain transition-all duration-300 ${lightMode ? 'brightness-0 opacity-80' : ''}`} 
             />
           </div>
           
-          <div className="h-6 w-[1px] bg-[var(--line-2)]"></div>
+          <div className="hidden md:block h-6 w-[1px] bg-[var(--line-2)]"></div>
           
-          <div className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-6 font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">
             <div className="relative group">
               <button 
                 className={`flex items-center gap-1 transition-colors ${(activeView === 'arcade' || activeView === 'ai-foundations') ? 'text-[var(--amber)] font-bold' : 'hover:text-[var(--amber)]'}`}
@@ -332,6 +347,97 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
 
         </div>
       </nav>
+
+      {/* MOBILE NAVIGATION DRAWER */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-[var(--paper-2)] border-b border-[var(--line)] p-4 space-y-2 z-40 animate-fadeIn shadow-xl font-mono text-xs uppercase tracking-wider">
+          <div className="font-bold text-[var(--muted)] text-[10px] uppercase tracking-widest pb-1 border-b border-[var(--line-2)] mb-2">
+            Navigation Menu
+          </div>
+          
+          <button
+            onClick={() => {
+              if (onNavigate) onNavigate('arcade');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+              activeView === 'arcade' ? 'bg-[var(--surface)] text-[var(--amber)]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+            }`}
+          >
+            <span className="flex items-center gap-2"><BookOpen size={16} /> All Courses</span>
+            {activeView === 'arcade' && <CheckCircle2 size={14} className="text-[var(--amber)]" />}
+          </button>
+
+          <button
+            onClick={() => {
+              if (onNavigate) onNavigate('ai-foundations');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+              activeView === 'ai-foundations' ? 'bg-[var(--surface)] text-[var(--amber)]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+            }`}
+          >
+            <span className="flex items-center gap-2"><Sparkles size={16} /> AI Foundations</span>
+            {activeView === 'ai-foundations' && <CheckCircle2 size={14} className="text-[var(--amber)]" />}
+          </button>
+
+          <button
+            onClick={() => {
+              if (onNavigate) onNavigate('badges');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+              activeView === 'badges' ? 'bg-[var(--surface)] text-[var(--amber)]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+            }`}
+          >
+            <span className="flex items-center gap-2"><Trophy size={16} /> Milestones & Rubrics</span>
+            {activeView === 'badges' && <CheckCircle2 size={14} className="text-[var(--amber)]" />}
+          </button>
+
+          <button
+            onClick={() => {
+              if (onNavigate) onNavigate('resources');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+              activeView === 'resources' ? 'bg-[var(--surface)] text-[var(--amber)]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+            }`}
+          >
+            <span className="flex items-center gap-2"><Layers size={16} /> Resources Directory</span>
+            {activeView === 'resources' && <CheckCircle2 size={14} className="text-[var(--amber)]" />}
+          </button>
+
+          {user.role === 'teacher' && (
+            <button
+              onClick={() => {
+                if (onNavigate) onNavigate('classroom');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+                activeView === 'classroom' ? 'bg-[var(--surface)] text-[#06B6D4]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+              }`}
+            >
+              <span className="flex items-center gap-2"><Shield size={16} /> Classroom</span>
+              {activeView === 'classroom' && <CheckCircle2 size={14} className="text-[#06B6D4]" />}
+            </button>
+          )}
+
+          {user.isAdmin && (
+            <button
+              onClick={() => {
+                if (onNavigate) onNavigate('lesson-builder');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center justify-between transition-colors ${
+                activeView === 'lesson-builder' ? 'bg-[var(--surface)] text-[#06B6D4]' : 'text-[var(--ink)] hover:bg-[var(--surface)]'
+              }`}
+            >
+              <span className="flex items-center gap-2"><Zap size={16} /> Lesson Builder</span>
+              {activeView === 'lesson-builder' && <CheckCircle2 size={14} className="text-[#06B6D4]" />}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* CUSTOMIZE AVATAR MODAL */}
       {showAvatarModal && (

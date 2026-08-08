@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronLeft, Box, BookOpen, Target, CheckCircle2, Award, Trophy, Sparkles } from 'lucide-react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { aiFoundationsCurriculum } from '../aiFoundationsData';
 
 interface UnitLearningPathProps {
   unitId: string;
@@ -31,55 +32,58 @@ export default function UnitLearningPath({ unitId, unitTitle, onBack, onLessonSe
     return () => unsubscribe();
   }, []);
 
+  // Lookup unit in AI foundations curriculum if available
+  const foundUnit = aiFoundationsCurriculum.flatMap(s => s.units).find(u => u.id.toLowerCase() === unitId.toLowerCase());
+  const displayTitle = unitTitle || foundUnit?.title || 'Unit Learning Path';
+  const displayConcept = foundUnit?.concept ? `Core Concept: ${foundUnit.concept}. ${foundUnit.activity}` : 'Explore foundational concepts, interactive activities, and real-world applications for Grade 10 STEM mastery.';
+
   const latestCustomLesson = customLessons[0];
 
-  // Mock data for levels since we don't have this in the curriculum structure
-  const levels = unitId === 'u1' ? [
+  // Generate structured interactive levels for all units
+  const levels = [
     {
       id: 1,
-      title: "Foundations of AI",
+      title: "Core Concepts & Foundations",
       lessons: [
         { 
-          id: latestCustomLesson ? latestCustomLesson.id : 'l1', 
-          title: latestCustomLesson ? latestCustomLesson.lessonTitle : 'What is Artificial Intelligence?', 
-          status: latestCustomLesson ? 'active' : 'completed', 
+          id: latestCustomLesson ? latestCustomLesson.id : `${unitId}_l1`, 
+          title: latestCustomLesson ? latestCustomLesson.lessonTitle : `Introduction to ${displayTitle}`, 
+          status: 'active', 
           type: 'lesson',
           isCustom: !!latestCustomLesson
         },
-        { id: 'l2', title: 'The History of AI', status: 'active', type: 'lesson' },
-        { id: 'l3', title: 'Narrow vs General AI', status: 'locked', type: 'lesson' },
-        { id: 'l4', title: 'Everyday AI Applications', status: 'locked', type: 'lesson' },
-        { id: 'a1', title: 'Level 1 Assessment', status: 'locked', type: 'assessment' },
+        { id: `${unitId}_l2`, title: 'Core Mechanics & Key Frameworks', status: 'active', type: 'lesson' },
+        { id: `${unitId}_l3`, title: 'Interactive Sandbox & Exercises', status: 'active', type: 'lesson' },
+        { id: `${unitId}_a1`, title: 'Level 1 Assessment', status: 'active', type: 'assessment' },
       ]
     },
     {
       id: 2,
-      title: "Machine Learning Basics",
+      title: "Guided Hands-On Application",
       lessons: [
-        { id: 'l5', title: 'How Machines Learn', status: 'locked', type: 'lesson' },
-        { id: 'l6', title: 'Supervised Learning', status: 'locked', type: 'lesson' },
-        { id: 'l7', title: 'Unsupervised Learning', status: 'locked', type: 'lesson' },
-        { id: 'a2', title: 'Level 2 Assessment', status: 'locked', type: 'assessment' },
+        { id: `${unitId}_l4`, title: 'Step-by-Step Guided Lab', status: 'active', type: 'lesson' },
+        { id: `${unitId}_l5`, title: 'Real-World Case Analysis', status: 'active', type: 'lesson' },
+        { id: `${unitId}_a2`, title: 'Level 2 Practical Challenge', status: 'active', type: 'assessment' },
       ]
     },
     {
       id: 3,
-      title: "Deep Learning & Neural Networks",
+      title: "Critical Reflection & Ethics",
       lessons: [
-        { id: 'l8', title: 'What is a Neural Network?', status: 'locked', type: 'lesson' },
-        { id: 'l9', title: 'Deep Learning in Practice', status: 'locked', type: 'lesson' },
-        { id: 'a3', title: 'Level 3 Assessment', status: 'locked', type: 'assessment' },
+        { id: `${unitId}_l6`, title: 'System Bias & Impact Audit', status: 'locked', type: 'lesson' },
+        { id: `${unitId}_l7`, title: 'Optimization & Best Practices', status: 'locked', type: 'lesson' },
+        { id: `${unitId}_a3`, title: 'Level 3 Review', status: 'locked', type: 'assessment' },
       ]
     },
     {
       id: 4,
-      title: "Unit Final",
+      title: "Unit Capstone Final",
       isFinal: true,
       lessons: [
-        { id: 'f1', title: 'Unit Final Assessment & Project', status: 'locked', type: 'final-project' }
+        { id: `${unitId}_f1`, title: 'Unit Final Assessment & Project', status: 'locked', type: 'final-project' }
       ]
     }
-  ] : [];
+  ];
 
   return (
     <div className="min-h-screen p-6 md:p-12 font-sans text-[var(--ink)] transition-colors duration-300">
@@ -99,9 +103,9 @@ export default function UnitLearningPath({ unitId, unitTitle, onBack, onLessonSe
               <Box size={32} />
             </div>
             
-            <h1 className="text-2xl font-bold font-serif mb-3 leading-tight">{unitTitle || 'AI vs ML vs DL'}</h1>
+            <h1 className="text-2xl font-bold font-serif mb-3 leading-tight">{displayTitle}</h1>
             <p className="text-[var(--muted)] text-sm mb-8 leading-relaxed">
-              {unitId === 'u1' ? 'Explore the core concepts of Artificial Intelligence, Machine Learning, and Deep Learning, and understand how they fit together in the modern tech landscape.' : 'Supercharge your programming skills to build interactive projects.'}
+              {displayConcept}
             </p>
             
             <div className="flex gap-6 text-sm font-bold text-[var(--ink)]">

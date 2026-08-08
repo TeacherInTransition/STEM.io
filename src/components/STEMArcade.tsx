@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
-import { curriculum, Subject } from '../curriculumData';
+import { aiFoundationsCurriculum, Subject } from '../aiFoundationsData';
+import { curriculum as baseCurriculum } from '../curriculumData';
 import { logActivity, db } from '../lib/firebase';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { BookOpen, ChevronRight, Lock, Sparkles, CheckCircle2, Star, Box, Cpu, Network, Shield, Binary } from 'lucide-react';
@@ -29,8 +30,11 @@ const getUnitIcon = (i: number) => {
 };
 
 export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnitSelect?: (unit: any) => void }) {
-  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>('q1-ai-foundations');
   const [publishedLessons, setPublishedLessons] = useState<any[]>([]);
+
+  // Combine full AI Foundations curriculum (5 quarters) with any additional base subjects
+  const allTracks: Subject[] = [...aiFoundationsCurriculum];
 
   useEffect(() => {
     document.body.classList.add('index-page');
@@ -52,21 +56,18 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
   }, []);
 
   const handleUnitClick = (unit: any) => {
-    if (unit.id !== 'u1') {
-      return;
-    }
     if (onUnitSelect) {
       onUnitSelect(unit);
     }
   };
 
   return (
-    <div className="min-h-screen  p-6 md:p-12 font-sans text-[var(--ink)] transition-colors duration-300">
+    <div className="min-h-screen p-6 md:p-12 font-sans text-[var(--ink)] transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
         
         <header className="mb-8 md:mb-12">
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 font-serif">Arcade Dashboard</h1>
-          <p className="text-[var(--muted)] font-serif">Select a learning track to expand its units.</p>
+          <p className="text-[var(--muted)] font-serif">Select a learning track to expand its units across all 5 Quarters.</p>
         </header>
 
         {user && <QuestTracker user={user} />}
@@ -104,7 +105,6 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
                         key={lesson.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle lesson click here
                           if (onUnitSelect) {
                             onUnitSelect({ id: lesson.id, title: lesson.lessonTitle, customLesson: lesson });
                           }
@@ -138,9 +138,8 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
             </div>
           )}
 
-          {curriculum.map((track, idx) => {
+          {allTracks.map((track, idx) => {
             const isSelected = track.id === selectedTrackId;
-            const isFeatured = idx < 2; // Highlighting the first two tracks as active/featured
             
             return (
               <div key={track.id} className="flex flex-col w-full">
@@ -156,19 +155,18 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
                   </div>
                   
                   <div className="flex-1 min-w-0 pt-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--amber)] bg-[var(--amber-tint)] px-2.5 py-0.5 rounded-full border border-[var(--amber)]/20">
+                        {track.themes || `Quarter ${idx + 1}`}
+                      </span>
+                    </div>
                     <h3 className="font-serif font-bold text-2xl text-[var(--ink)] mb-1.5 truncate">{track.title}</h3>
                   </div>
 
                   <div className="shrink-0 flex items-center gap-4 ml-auto">
-                    {isFeatured ? (
-                      <span className="flex items-center text-[var(--amber)]">
-                        <Star className="w-7 h-7 fill-current" />
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-[var(--muted)]/50">
-                        <Lock className="w-6 h-6" />
-                      </span>
-                    )}
+                    <span className="flex items-center text-[var(--amber)]">
+                      <Star className="w-7 h-7 fill-current" />
+                    </span>
                   </div>
                 </div>
 
@@ -183,7 +181,7 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
                             e.stopPropagation();
                             handleUnitClick(unit);
                           }}
-                          className={`group relative flex flex-col items-center w-[160px] shrink-0 ${unit.id === 'u1' ? 'cursor-pointer' : 'cursor-default opacity-60'}`}
+                          className="group relative flex flex-col items-center w-[160px] shrink-0 cursor-pointer"
                         >
                           {/* The horizontal line connecting to the next unit */}
                           {i < track.units.length - 1 && (
@@ -191,7 +189,7 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
                           )}
                           
                           {/* The white card */}
-                          <div className={`w-[160px] h-[160px] bg-[var(--surface)] rounded-[24px] shadow-sm border border-[var(--line)] flex flex-col items-center justify-center relative transition-all ${unit.id === 'u1' ? 'hover:shadow-md group-hover:border-[var(--amber)]' : ''}`}>
+                          <div className="w-[160px] h-[160px] bg-[var(--surface)] rounded-[24px] shadow-sm border border-[var(--line)] flex flex-col items-center justify-center relative transition-all hover:shadow-md group-hover:border-[var(--amber)]">
                             {/* Top-left tag */}
                             <div className="absolute top-4 left-4 px-2.5 py-1 bg-[var(--paper)] text-[var(--muted)] text-[10px] font-mono rounded-md border border-[var(--line)] shadow-sm">
                               <span className="text-[var(--amber)] font-bold">{unit.id.toUpperCase()}</span> <span className="opacity-50 mx-1">|</span> {unit.tags[0] || 'Unit'}
