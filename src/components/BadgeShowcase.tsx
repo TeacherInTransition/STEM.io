@@ -8,6 +8,7 @@ import {
   MilestoneDef 
 } from '../utils/milestonesAndRubrics';
 import RubricEvaluationCard from './RubricEvaluationCard';
+import { fetchResourceOpens, fetchResourcesFromDb } from '../lib/firebase';
 import { Award, Target, Zap, Star, Shield, Lock, CheckCircle2, BookOpen, Layers, Eye, FolderPlus, Trophy, Sparkles } from 'lucide-react';
 
 interface BadgeShowcaseProps {
@@ -34,33 +35,48 @@ export default function BadgeShowcase({ user }: BadgeShowcaseProps) {
   const [allResources, setAllResources] = useState<Array<{ id: string; lessonId?: string }>>([]);
 
   useEffect(() => {
-    // Load student completed resources from localStorage
-    try {
-      const saved = localStorage.getItem(`stemio_completed_resources_${user.id}`);
-      if (saved) {
-        setCompletedResourceIds(JSON.parse(saved));
-      }
-      
-      const savedResources = localStorage.getItem('stemio_custom_resources_grid');
-      if (savedResources) {
-        const parsed = JSON.parse(savedResources);
-        setAllResources(parsed.map((r: any) => ({ id: String(r.id), lessonId: r.lessonId })));
-      } else {
-        // Fallback default sample count
-        setAllResources([
-          { id: '1', lessonId: 'what-is-ai' },
-          { id: '2', lessonId: 'history-of-ai' },
-          { id: '3', lessonId: 'narrow-vs-general' },
-          { id: '4', lessonId: 'python-basics' },
-          { id: '5', lessonId: 'ml-ethics' },
-          { id: '6', lessonId: 'vibe-coding' },
-          { id: '7', lessonId: 'neural-networks' },
-          { id: '8', lessonId: 'general' }
+    const loadRealStudentData = async () => {
+      try {
+        const [resourceOpens, dbResources] = await Promise.all([
+          fetchResourceOpens(),
+          fetchResourcesFromDb()
         ]);
+
+        // Filter open records for this user
+        const userOpens = resourceOpens.filter(o => o.userId === user.id);
+        const openedIds = Array.from(new Set(userOpens.map(o => o.resourceId)));
+
+        // Combine local storage completions with Firestore resource open events
+        const saved = localStorage.getItem(`stemio_completed_resources_${user.id}`);
+        let localCompleted: string[] = [];
+        if (saved) {
+          try { localCompleted = JSON.parse(saved); } catch (e) {}
+        }
+
+        const mergedOpenedIds = Array.from(new Set([...openedIds, ...localCompleted]));
+        setCompletedResourceIds(mergedOpenedIds);
+
+        if (dbResources && dbResources.length > 0) {
+          setAllResources(dbResources.map(r => ({ id: r.id, lessonId: r.lessonId })));
+        } else {
+          // Fallback default sample count
+          setAllResources([
+            { id: '1', lessonId: 'what-is-ai' },
+            { id: '2', lessonId: 'history-of-ai' },
+            { id: '3', lessonId: 'narrow-vs-general' },
+            { id: '4', lessonId: 'python-basics' },
+            { id: '5', lessonId: 'ml-ethics' },
+            { id: '6', lessonId: 'vibe-coding' },
+            { id: '7', lessonId: 'neural-networks' },
+            { id: '8', lessonId: 'general' }
+          ]);
+        }
+      } catch (e) {
+        console.error('Error loading real student data in BadgeShowcase:', e);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    };
+
+    loadRealStudentData();
   }, [user.id]);
 
   // Compute live metrics

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { curriculum } from '../curriculumData';
 import { aiFoundationsCurriculum } from '../aiFoundationsData';
-import { ResourceItem, fetchResourcesFromDb, saveResourcesToDb, awardStemios } from '../lib/firebase';
+import { ResourceItem, fetchResourcesFromDb, saveResourcesToDb, awardStemios, recordResourceOpen } from '../lib/firebase';
 import { calculateLearningMetrics, generateCompetencyRubric } from '../utils/milestonesAndRubrics';
 import RubricEvaluationCard from './RubricEvaluationCard';
 
@@ -216,22 +216,19 @@ export default function ResourcesPage({ user }: ResourcesPageProps) {
       }
     }
 
-    if (completedResources.includes(resource.id)) return;
+    // Call recordResourceOpen to persist interaction under resource_opens in Firestore & update view counts
+    const recordResult = await recordResourceOpen(user.id, resource.id, resource.lessonId);
 
     setResources(prev => prev.map(r => r.id === resource.id ? { ...r, views: (r.views || 0) + 1 } : r));
     
-    const newCompletions = [...completedResources, resource.id];
-    setCompletedResources(newCompletions);
-    localStorage.setItem(`stemio_completed_resources_${user.id}`, JSON.stringify(newCompletions));
-
-    try {
-      const result = await awardStemios(user.id, `resource_${resource.id}`, 5);
-      if (result.awarded) {
-        setRewardMessage(`🎉 Resource Complete! +${result.amount} Stemios credited to your profile!`);
+    if (!completedResources.includes(resource.id)) {
+      const newCompletions = [...completedResources, resource.id];
+      setCompletedResources(newCompletions);
+      
+      if (recordResult.isFirstOpen) {
+        setRewardMessage(`🎉 Resource Complete! +10 Stemios credited to your profile!`);
         setTimeout(() => setRewardMessage(null), 4000);
       }
-    } catch (err) {
-      console.error(err);
     }
   };
 

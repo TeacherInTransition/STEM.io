@@ -22,9 +22,9 @@ export const aiFoundationsCurriculum: Subject[] = [
     units: [
       {
         id: "u1",
-        title: "AI vs ML vs DL",
-        concept: "AI/ML/DL hierarchy",
-        activity: "Explore supervised and unsupervised learning structures.",
+        title: "Problem Solving with AI",
+        concept: "LLMs, Prompting & Ethics",
+        activity: "Explore 12 interactive lessons on prompt engineering, embeddings, bias auditing, and societal impacts.",
         reward: 10,
         tags: ["Foundations"]
       },

@@ -1,13 +1,246 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db, awardStemios } from '../lib/firebase';
+import { db, awardStemios, recordResourceOpen } from '../lib/firebase';
+import { User } from '../types';
 import { doc, getDoc } from 'firebase/firestore';
-import { ArrowLeft, ChevronRight, ChevronLeft, CheckCircle, Maximize2, Minimize2, Sparkles, Lightbulb, Paperclip, FileText, Download, ExternalLink, Video, Globe, Play } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ChevronLeft, CheckCircle, Maximize2, Minimize2, Sparkles, Lightbulb, Paperclip, FileText, Download, ExternalLink, Video, Globe, Play, X, HelpCircle } from 'lucide-react';
+import { UNIT_1_MASTER_PLAN } from '../data/unitMasterPlans';
+import { aiFoundationsCurriculum } from '../aiFoundationsData';
 
-function MaterialItemCard({ mat }: { mat: any; key?: any }) {
+function findStaticLesson(lessonId: string) {
+  if (!lessonId) return null;
+  const cleanId = lessonId.trim().toLowerCase();
+
+  // 1. Try to find match in UNIT_1_MASTER_PLAN.lessons
+  let master = UNIT_1_MASTER_PLAN.lessons.find(m => {
+    const mId = m.id.toLowerCase();
+    const numStr = String(m.lessonNumber);
+    return (
+      mId === cleanId ||
+      `u1_${mId}` === cleanId ||
+      cleanId === `l${numStr}` ||
+      cleanId === `u1_l${numStr}` ||
+      cleanId === `lesson-${numStr}` ||
+      cleanId === `lesson_${numStr}` ||
+      cleanId === numStr
+    );
+  });
+
+  // If lessonId is "u1", "unit1", or "unit-1", default to first master lesson
+  if (!master && (cleanId === 'u1' || cleanId === 'unit1' || cleanId === 'unit-1' || cleanId === 'unit_1')) {
+    master = UNIT_1_MASTER_PLAN.lessons[0];
+  }
+
+  if (master) {
+    return {
+      id: master.id,
+      lessonTitle: `Lesson ${master.lessonNumber}: ${master.title}`,
+      subject: "Introduction to Artificial Intelligence",
+      grade: "Grade 10",
+      pacing: master.instructionAndSandbox?.duration || "50 Minutes",
+      concepts: master.concepts,
+      standards: master.standards,
+      mathLoad: master.mathLoad,
+      slides: [
+        {
+          title: `Warm-Up: ${master.warmUp.title}`,
+          content: `${master.warmUp.activity}\n\n💡 Pedagogical Purpose:\n${master.warmUp.pedagogicalConnection}`,
+          keyTakeaways: [
+            `Duration: ${master.warmUp.duration}`,
+            `Focus: Interactive Inquiry & Engagement`
+          ]
+        },
+        {
+          title: `Direct Instruction: ${master.instructionAndSandbox.title}`,
+          content: master.instructionAndSandbox.directInstruction,
+          keyTakeaways: [
+            `Concepts: ${master.concepts}`,
+            `Standards: ${master.standards}`,
+            `Math Complexity: ${master.mathLoad}`
+          ]
+        },
+        {
+          title: `Collaborative Sandbox & Application`,
+          content: master.instructionAndSandbox.collaborativeActivity,
+          keyTakeaways: [
+            `Hands-On Sandbox Practice & Exploration`,
+            `Teamwork & Interactive Problem Solving`
+          ]
+        },
+        {
+          title: `Exit Ticket & Synthesis`,
+          content: `${master.exitTicket.title} (${master.exitTicket.duration}):\n\n"${master.exitTicket.prompt}"`,
+          keyTakeaways: [
+            `Individual Assessment & Reflection`,
+            `Mastery Checkpoint`
+          ]
+        }
+      ],
+      quiz: [
+        {
+          question: `What primary concept is introduced in Lesson ${master.lessonNumber} (${master.title})?`,
+          options: [
+            master.concepts.split(',')[0] || "AI Foundations & Prompt Engineering",
+            "Manual binary disk formatting",
+            "Analog radio signal soldering",
+            "Uncalibrated tape storage backup"
+          ],
+          correctAnswer: 0,
+          explanation: `Lesson ${master.lessonNumber} focuses on ${master.concepts}.`,
+          hint: `Recall the core topic: ${master.concepts.split(',')[0] || master.title}.`
+        },
+        {
+          question: `How should students approach the collaborative activity in this lesson?`,
+          options: [
+            "By actively testing prompts, evaluating outputs, and applying human-in-the-loop verification.",
+            "By blindly copying responses without checking for accuracy or bias.",
+            "By skipping the exit ticket and avoiding team collaboration.",
+            "By ignoring curriculum standards and guidelines."
+          ],
+          correctAnswer: 0,
+          explanation: "Iterative testing and critical verification are essential for responsible AI co-creation.",
+          hint: "Select the option that emphasizes structured practice and human verification."
+        }
+      ]
+    };
+  }
+
+  // 2. Check aiFoundationsCurriculum units
+  const allUnits = aiFoundationsCurriculum.flatMap(s => s.units);
+  const foundUnit = allUnits.find(u => u.id.toLowerCase() === cleanId || u.title.toLowerCase().includes(cleanId));
+  if (foundUnit) {
+    return {
+      id: foundUnit.id,
+      lessonTitle: `Unit ${foundUnit.id.toUpperCase()}: ${foundUnit.title}`,
+      subject: "STEM.io AI Foundations",
+      grade: "Grade 10",
+      pacing: "50 Minutes",
+      concepts: foundUnit.concept,
+      standards: "CSTA 3A-AP-22, IGCSE 0478",
+      mathLoad: "Medium",
+      slides: [
+        {
+          title: `Unit Overview: ${foundUnit.title}`,
+          content: `Welcome to Unit ${foundUnit.id.toUpperCase()}: ${foundUnit.title}.\n\nCore Concept: ${foundUnit.concept}\n\nActivity Objective: ${foundUnit.activity}`,
+          keyTakeaways: [
+            `Tag: ${foundUnit.tags.join(', ')}`,
+            `Completion Reward: +${foundUnit.reward} Stemios`
+          ]
+        },
+        {
+          title: `Direct Instruction & Core Principles`,
+          content: `In this unit, we explore key principles surrounding ${foundUnit.concept}.\n\nUnderstand how algorithm design, dataset structures, and ethical considerations shape real-world AI applications.`,
+          keyTakeaways: [
+            `Understand ${foundUnit.concept}`,
+            `Analyze practical implementations`
+          ]
+        },
+        {
+          title: `Interactive Practical Exercise`,
+          content: foundUnit.activity,
+          keyTakeaways: [
+            `Hands-On Sandbox Practice`,
+            `Collaborative Problem Solving`
+          ]
+        },
+        {
+          title: `Unit Mastery Checkpoint`,
+          content: `Reflect on what you have learned in ${foundUnit.title}. How does ${foundUnit.concept} impact modern technology and society?`,
+          keyTakeaways: [
+            `Self-Assessment`,
+            `Synthesis & Feedback`
+          ]
+        }
+      ],
+      quiz: [
+        {
+          question: `What is the core concept of Unit ${foundUnit.id.toUpperCase()}?`,
+          options: [
+            foundUnit.concept,
+            "Unrelated manual spreadsheet entry",
+            "Analog telephone routing",
+            "Legacy magnetic drive defragmentation"
+          ],
+          correctAnswer: 0,
+          explanation: `Unit ${foundUnit.id.toUpperCase()} centers on ${foundUnit.concept}.`,
+          hint: `Look at the unit overview: ${foundUnit.concept}.`
+        }
+      ]
+    };
+  }
+
+  // 3. Fallback generic structured lesson template so no lesson ever fails to open
+  const formattedTitle = cleanId.replace(/[-_]/g, ' ').toUpperCase();
+  return {
+    id: lessonId,
+    lessonTitle: `STEM.io Interactive Lesson (${formattedTitle})`,
+    subject: "Introduction to Artificial Intelligence",
+    grade: "Grade 10",
+    pacing: "50 Minutes",
+    concepts: "AI Problem Solving, Prompt Engineering & Ethics",
+    standards: "IGCSE 6.3, IB A.4",
+    mathLoad: "Low",
+    slides: [
+      {
+        title: `Introduction: ${formattedTitle}`,
+        content: `Welcome to the interactive module for ${formattedTitle}.\n\nIn this lesson, you will explore foundational AI concepts, hands-on prompt testing, and ethical guidelines for modern machine learning systems.`,
+        keyTakeaways: [
+          `Focus: Grade 10 STEM Curriculum`,
+          `Pacing: Interactive Guided Module`
+        ]
+      },
+      {
+        title: `Core Principles & Direct Instruction`,
+        content: `Generative AI systems process tokens using statistical probabilities. By structuring inputs with explicit context, role constraints, and output formatting, you guide models to produce reliable and accurate answers.`,
+        keyTakeaways: [
+          `Next-token prediction & probability`,
+          `Contextual constraints and ISPO framework`
+        ]
+      },
+      {
+        title: `Sandbox Activity & Practical Application`,
+        content: `Practice writing and auditing prompts. Test how altering temperature, adding reference constraints, or changing task phrasing alters model performance.`,
+        keyTakeaways: [
+          `Hands-on prompt iteration`,
+          `Critical evaluation of machine outputs`
+        ]
+      },
+      {
+        title: `Exit Ticket & Synthesis`,
+        content: `Write a short reflection explaining one key takeaway from this module and how human oversight ensures AI reliability.`,
+        keyTakeaways: [
+          `Individual reflection`,
+          `Mastery verification`
+        ]
+      }
+    ],
+    quiz: [
+      {
+        question: `What is a fundamental rule for effective prompt engineering?`,
+        options: [
+          "Provide explicit task instructions, clear context, and specific output format requirements.",
+          "Use vague one-word queries and rely on the AI to guess missing background.",
+          "Never double-check facts or citations generated by machine models.",
+          "Disable all safety filters and human verification steps."
+        ],
+        correctAnswer: 0,
+        explanation: "Clear context, task constraints, and formatting requirements produce higher quality AI responses.",
+        hint: "Select the option that advocates clear context and output specifications."
+      }
+    ]
+  };
+}
+
+function MaterialItemCard({ mat, userId, lessonId }: { mat: any; userId?: string; lessonId?: string; key?: any }) {
   const [showPreview, setShowPreview] = useState(false);
   const isFile = mat.type === 'file';
   const isVideo = mat.type === 'video';
   const isLink = mat.type === 'link';
+
+  const handleOpenInteraction = () => {
+    if (userId) {
+      recordResourceOpen(userId, mat.id || `res_${mat.title}`, lessonId || 'lesson_viewer');
+    }
+  };
 
   // Parse Video Embed URL
   let embedUrl = null;
@@ -48,30 +281,30 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
 
   return (
     <div 
-      className="p-5 rounded-2xl bg-[#FBF8F2] border border-[#E5E7EB] shadow-xs flex flex-col gap-4 text-left"
-      style={{ borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+      className="p-5 rounded-2xl bg-[var(--paper-2)] border border-[var(--line)] shadow-xs flex flex-col gap-4 text-left"
+      style={{ borderRadius: '12px' }}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-xl ${
-            isFile ? 'bg-[#D1FAE5] text-[#059669]' : 
-            isVideo ? 'bg-[#FEE2E2] text-[#DC2626]' : 
-            'bg-[#DBEAFE] text-[#2563EB]'
+            isFile ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 
+            isVideo ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 
+            'bg-amber-500/15 text-[var(--amber)]'
           }`}>
             {isFile ? <FileText size={18} /> : isVideo ? <Video size={18} /> : <ExternalLink size={18} />}
           </div>
           <div>
-            <h5 className="text-sm font-bold text-[#111827]">{mat.title}</h5>
-            <p className="text-xs text-gray-500 font-mono mt-0.5 truncate max-w-xs sm:max-w-md">
+            <h5 className="text-sm font-bold text-[var(--ink)]">{mat.title}</h5>
+            <p className="text-xs text-[var(--muted)] font-mono mt-0.5 truncate max-w-xs sm:max-w-md">
               {isFile ? (mat.fileName || 'Google Drive File') : mat.url}
             </p>
           </div>
         </div>
         
         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-          isFile ? 'bg-[#D1FAE5] text-[#059669]' : 
-          isVideo ? 'bg-[#FEE2E2] text-[#DC2626]' : 
-          'bg-[#DBEAFE] text-[#2563EB]'
+          isFile ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 
+          isVideo ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400' : 
+          'bg-amber-500/15 text-[var(--amber)]'
         }`}>
           {isFile ? 'File Attachment' : isVideo ? 'Video Resource' : 'Web Link'}
         </span>
@@ -80,7 +313,7 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
       {/* Render File Interaction (Google Drive / Uploaded File) */}
       {isFile && (
         <div className="space-y-3">
-          <div className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--line)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-2">
               <img 
                 src={isBase64 ? "https://cdn-icons-png.flaticon.com/512/2245/2245239.png" : "https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg"} 
@@ -89,10 +322,10 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
                 referrerPolicy="no-referrer"
               />
               <div className="text-left">
-                <span className="text-xs font-bold text-[#111827] block">
+                <span className="text-xs font-bold text-[var(--ink)] block">
                   {isBase64 ? "Local Offline Resource" : "Google Drive Document"}
                 </span>
-                <span className="text-[10px] text-gray-500 block">
+                <span className="text-[10px] text-[var(--muted)] block">
                   {isBase64 ? `Download and inspect offline file (${mat.fileName || 'document'})` : "Access lesson slides, templates, and spreadsheets online"}
                 </span>
               </div>
@@ -102,8 +335,11 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
               {(previewUrl || isPdf || isImage || isBase64) && (
                 <button
                   type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-lg transition-all text-center cursor-pointer"
+                  onClick={() => {
+                    handleOpenInteraction();
+                    setShowPreview(!showPreview);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--paper)] hover:bg-[var(--surface)] text-[var(--ink)] font-bold text-xs rounded-lg border border-[var(--line)] transition-all text-center cursor-pointer"
                 >
                   {showPreview ? "Hide Preview" : "Show Preview"}
                 </button>
@@ -113,7 +349,8 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
                 <a 
                   href={mat.url}
                   download={mat.fileName || 'download'}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#059669] hover:bg-[#047857] text-white font-bold text-xs rounded-lg shadow-sm transition-all text-center cursor-pointer"
+                  onClick={handleOpenInteraction}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all text-center cursor-pointer"
                 >
                   <Download size={13} />
                   <span>Download / Open File</span>
@@ -123,7 +360,8 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
                   href={mat.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs rounded-lg shadow-sm transition-all text-center cursor-pointer"
+                  onClick={handleOpenInteraction}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-[var(--amber)] hover:opacity-90 text-white font-bold text-xs rounded-lg shadow-sm transition-all text-center cursor-pointer"
                 >
                   <ExternalLink size={13} />
                   <span>Open Google Drive File</span>
@@ -157,30 +395,30 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
                   ></iframe>
                 </div>
               ) : isImage ? (
-                <div className="w-full border border-gray-200 rounded-lg p-2 bg-gray-50 flex items-center justify-center">
+                <div className="w-full border border-[var(--line)] rounded-lg p-2 bg-[var(--paper-2)] flex items-center justify-center">
                   <img src={mat.url} alt="Document Preview" className="max-h-96 rounded-lg object-contain shadow-2xs" />
                 </div>
               ) : (
                 /* Interactive educational document simulator */
-                <div className="bg-[#FBF8F2] p-4 rounded-xl border border-dashed border-amber-300 space-y-3 text-center">
+                <div className="bg-[var(--surface)] p-4 rounded-xl border border-dashed border-[var(--amber)]/40 space-y-3 text-center">
                   <span className="text-2xl">📋</span>
-                  <h6 className="text-xs font-bold text-[#111827]">Interactive Document Simulation</h6>
-                  <p className="text-[11px] text-gray-500 max-w-md mx-auto">
+                  <h6 className="text-xs font-bold text-[var(--ink)]">Interactive Document Simulation</h6>
+                  <p className="text-[11px] text-[var(--muted)] max-w-md mx-auto">
                     This file ("{mat.fileName}") is an offline resource. We've compiled an interactive educational reading summary for your study arcade below.
                   </p>
-                  <div className="bg-white p-3 rounded-lg border border-gray-100 text-left space-y-2 mt-2">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
-                      <span className="text-[10px] font-bold text-[#B45309]">STEM Worksheet Outline</span>
-                      <span className="text-[9px] bg-amber-100 text-[#B45309] font-semibold px-2 py-0.5 rounded-full">Grade 10 Practice</span>
+                  <div className="bg-[var(--paper-2)] p-3 rounded-lg border border-[var(--line)] text-left space-y-2 mt-2">
+                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-1.5">
+                      <span className="text-[10px] font-bold text-[var(--amber)]">STEM Worksheet Outline</span>
+                      <span className="text-[9px] bg-[var(--amber-tint)] text-[var(--amber)] font-semibold px-2 py-0.5 rounded-full">Grade 10 Practice</span>
                     </div>
-                    <div className="space-y-1 text-gray-600 text-[11px]">
-                      <p className="font-semibold text-gray-800">🔬 Key Subject Core Materials:</p>
+                    <div className="space-y-1 text-[var(--muted)] text-[11px]">
+                      <p className="font-semibold text-[var(--ink)]">🔬 Key Subject Core Materials:</p>
                       <ul className="list-disc pl-4 space-y-0.5 font-mono text-[10px]">
                         <li>Section 1.1: Foundations and Introductory Terminology</li>
                         <li>Section 1.2: Laboratory Safety Protocols & Sandbox Exercises</li>
                         <li>Section 1.3: Empirical Exercises with "+15 Stemios" Checkpoints</li>
                       </ul>
-                      <p className="text-gray-500 mt-2 text-[10px]">
+                      <p className="text-[var(--muted)] mt-2 text-[10px]">
                         Click <strong>Download / Open File</strong> above to open the full raw printouts, complete worksheets, and spreadsheets directly on your device.
                       </p>
                     </div>
@@ -194,7 +432,7 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
 
       {/* Render Video Preview */}
       {isVideo && (
-        <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-2xs w-full">
+        <div className="bg-[var(--surface)] p-3 rounded-xl border border-[var(--line)] shadow-2xs w-full">
           {embedUrl ? (
             <div className="aspect-video w-full rounded-lg overflow-hidden border border-gray-200">
               <iframe 
@@ -257,7 +495,7 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
   );
 }
 
-export default function LessonViewer({ lessonId, onBack }: { lessonId: string, onBack: () => void }) {
+export default function LessonViewer({ lessonId, onBack, user }: { lessonId: string; onBack: () => void; user?: User }) {
   const [lesson, setLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -267,6 +505,8 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [rewardOutcome, setRewardOutcome] = useState<{ awarded: boolean; amount: number; alreadyCompleted: boolean } | null>(null);
+  const [activeQuizIndex, setActiveQuizIndex] = useState(0);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const slideRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -277,10 +517,19 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
         if (docSnap.exists()) {
           setLesson({ id: docSnap.id, ...docSnap.data() });
         } else {
-          console.error("Lesson not found!");
+          const staticLesson = findStaticLesson(lessonId);
+          if (staticLesson) {
+            setLesson(staticLesson);
+          } else {
+            console.error("Lesson not found!");
+          }
         }
       } catch (e) {
         console.error("Error fetching lesson:", e);
+        const staticLesson = findStaticLesson(lessonId);
+        if (staticLesson) {
+          setLesson(staticLesson);
+        }
       } finally {
         setLoading(false);
       }
@@ -288,10 +537,24 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
     fetchLesson();
   }, [lessonId]);
 
-  const slides = lesson?.slides || [];
+  const rawSlides = lesson?.slides || [];
+  const slides = rawSlides.map((s: any, idx: number) => ({
+    ...s,
+    slideNumber: idx + 1
+  }));
   const quiz = lesson?.quiz || [];
 
   const [imageLoadError, setImageLoadError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [lessonId]);
+
+  useEffect(() => {
+    if (slides.length > 0 && currentSlide > slides.length) {
+      setCurrentSlide(slides.length);
+    }
+  }, [slides.length, currentSlide]);
 
   useEffect(() => {
     setImageLoadError(false);
@@ -394,7 +657,7 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-xl font-bold">{lesson.lessonTitle}</h1>
+            <h1 className="text-xl font-bold">{lesson?.lessonTitle || 'Lesson'}</h1>
             <p className="text-xs text-[var(--muted)] font-mono">
               {slides.length > 0 ? `${slides.length} slides` : 'Interactive Lesson'}
             </p>
@@ -511,7 +774,7 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
                 </h4>
                 <div className="space-y-4">
                   {slides[currentSlide].materials.map((mat: any) => (
-                    <MaterialItemCard key={mat.id} mat={mat} />
+                    <MaterialItemCard key={mat.id || mat.title} mat={mat} userId={user?.id} lessonId={lessonId} />
                   ))}
                 </div>
               </div>
@@ -545,7 +808,7 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
 
         {currentSlide === slides.length && (
           <div className="w-full max-w-4xl flex flex-col items-center gap-8">
-            {lesson.media?.videoUrl && (
+            {lesson?.media?.videoUrl && (
               <div className="w-full bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-8 flex flex-col items-center shadow-sm">
                 <h2 className="text-2xl font-bold mb-6 text-center">Video Resource</h2>
                 <iframe 
@@ -557,162 +820,422 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
                 ></iframe>
               </div>
             )}
-            {quiz.length > 0 && (
-              <div className="w-full max-w-2xl bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-6 md:p-8 flex flex-col items-center shadow-sm">
-                <div className="flex items-center justify-between w-full mb-6 pb-4 border-b border-[var(--line)]">
-                  <h2 className="text-2xl font-bold text-[var(--amber)] flex items-center gap-3">
-                    <CheckCircle size={28} /> Knowledge Check
+            <div className="text-xl font-bold flex items-center gap-2 text-[var(--amber)]">
+              <Sparkles size={24} /> Lesson Slides Completed!
+            </div>
+          </div>
+        )}
+
+        {/* Lesson Check-Up Quiz Section - ALWAYS positioned at the bottom of the center container below the slide */}
+        {quiz.length > 0 && (
+          <div className="w-full max-w-4xl bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-6 md:p-8 flex flex-col shadow-sm mt-8">
+            {/* Header with Pop-up button */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[var(--line)]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="text-[var(--amber)]" size={24} />
+                  <h2 className="text-xl md:text-2xl font-bold text-[var(--ink)]">
+                    Lesson Check-Up Quiz
                   </h2>
-                  <span className="text-xs font-mono font-bold px-3 py-1 bg-[var(--paper-2)] border border-[var(--line)] rounded-full text-[var(--muted)]">
-                    {quiz.length} {quiz.length === 1 ? 'Question' : 'Questions'}
-                  </span>
+                </div>
+                <p className="text-xs text-[var(--muted)] font-medium mt-0.5">
+                  Check your understanding for this module below
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold px-3 py-1 bg-[var(--paper-2)] border border-[var(--line)] rounded-full text-[var(--muted)]">
+                  {quiz.length} {quiz.length === 1 ? 'Question' : 'Questions'}
+                </span>
+                <button
+                  onClick={() => setIsQuizModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--amber)] hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition shadow-sm cursor-pointer"
+                  title="Open Pop-Up Quiz View"
+                >
+                  <Maximize2 size={14} />
+                  <span>Pop-Up Quiz View</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Questions 1, 2, 3... Tab Selection Bar */}
+            <div className="flex items-center gap-2 my-4 overflow-x-auto pb-2 scrollbar-thin">
+              <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider shrink-0 mr-1">
+                Questions:
+              </span>
+              {quiz.map((q: any, qIdx: number) => {
+                const isSelected = activeQuizIndex === qIdx;
+                const isAnswered = selectedAnswers[qIdx] !== undefined;
+                const isCorrect = submitted && selectedAnswers[qIdx] === q.correctIndex;
+
+                return (
+                  <button
+                    key={qIdx}
+                    onClick={() => setActiveQuizIndex(qIdx)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 border cursor-pointer ${
+                      isSelected
+                        ? 'bg-[var(--amber)] text-white border-amber-600 shadow-sm'
+                        : isAnswered
+                        ? 'bg-[var(--paper-2)] text-[var(--ink)] border-[var(--amber)]/50'
+                        : 'bg-[var(--paper-2)] text-[var(--muted)] border-[var(--line)] hover:text-[var(--ink)]'
+                    }`}
+                  >
+                    <span>Question {qIdx + 1}</span>
+                    {submitted && (
+                      <span className="text-[10px] font-black">
+                        {isCorrect ? '✓' : '✕'}
+                      </span>
+                    )}
+                    {!submitted && isAnswered && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--amber)]"></span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Single Selected Question Box */}
+            {quiz[activeQuizIndex] && (
+              <div className="w-full bg-[var(--paper-2)] p-5 md:p-6 rounded-2xl border border-[var(--line)] space-y-4 shadow-sm">
+                <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] uppercase tracking-wider font-bold">
+                  <span>Question {activeQuizIndex + 1} of {quiz.length}</span>
+                  {submitted && (
+                    <span className={selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+                      {selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "✓ Correct" : "✕ Incorrect"}
+                    </span>
+                  )}
                 </div>
 
-                <div className="w-full space-y-6">
-                  {quiz.map((q: any, qIdx: number) => {
-                    const selectedOpt = selectedAnswers[qIdx];
-                    const isCorrect = submitted && selectedOpt === q.correctIndex;
+                <h3 className="text-base md:text-lg font-bold text-[var(--ink)]">
+                  {quiz[activeQuizIndex].question}
+                </h3>
+
+                <div className="w-full flex flex-col gap-2.5">
+                  {(quiz[activeQuizIndex].options || []).map((opt: string, optIdx: number) => {
+                    const isSelected = selectedAnswers[activeQuizIndex] === optIdx;
+                    let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)]";
+
+                    if (submitted) {
+                      if (optIdx === quiz[activeQuizIndex].correctIndex) {
+                        btnStyle = "bg-emerald-500/15 border-emerald-500 text-emerald-800 font-bold shadow-sm";
+                      } else if (isSelected && optIdx !== quiz[activeQuizIndex].correctIndex) {
+                        btnStyle = "bg-rose-500/15 border-rose-500 text-rose-800 font-medium";
+                      } else {
+                        btnStyle = "bg-[var(--surface)] text-[var(--muted)] opacity-50 border-[var(--line)]";
+                      }
+                    } else if (isSelected) {
+                      btnStyle = "bg-amber-500/15 border-[var(--amber)] text-[var(--ink)] font-bold shadow-sm";
+                    }
 
                     return (
-                      <div key={qIdx} className="w-full bg-[var(--paper-2)] p-5 rounded-2xl border border-[var(--line)] space-y-3 shadow-sm">
-                        <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] uppercase tracking-wider font-bold">
-                          <span>Question {qIdx + 1} of {quiz.length}</span>
-                          {submitted && (
-                            <span className={selectedOpt === q.correctIndex ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
-                              {selectedOpt === q.correctIndex ? "✓ Correct" : "✕ Incorrect"}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="text-base md:text-lg font-bold text-[var(--ink)]">{q.question}</h3>
-                        <div className="w-full flex flex-col gap-2">
-                          {(q.options || []).map((opt: string, optIdx: number) => {
-                            const isSelected = selectedOpt === optIdx;
-                            let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)]";
-
-                            if (submitted) {
-                              if (optIdx === q.correctIndex) {
-                                btnStyle = "bg-emerald-500/15 border-emerald-500 text-emerald-800 font-bold shadow-sm";
-                              } else if (isSelected && optIdx !== q.correctIndex) {
-                                btnStyle = "bg-rose-500/15 border-rose-500 text-rose-800 font-medium";
-                              } else {
-                                btnStyle = "bg-[var(--surface)] text-[var(--muted)] opacity-50 border-[var(--line)]";
-                              }
-                            } else if (isSelected) {
-                              btnStyle = "bg-amber-500/15 border-[var(--amber)] text-[var(--ink)] font-bold shadow-sm";
-                            }
-
-                            return (
-                              <button
-                                key={optIdx}
-                                disabled={submitted}
-                                onClick={() => {
-                                  if (!submitted) {
-                                    setSelectedAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
-                                  }
-                                }}
-                                className={`w-full py-3 px-4 text-left text-sm rounded-xl transition-all border font-medium flex items-center justify-between ${btnStyle}`}
-                              >
-                                <span>{opt}</span>
-                                {submitted && optIdx === q.correctIndex && (
-                                  <span className="text-emerald-600 text-[11px] font-bold uppercase tracking-wider">Correct Answer</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {q.hint && (
-                          <div className="pt-1 border-t border-[var(--line)]/50">
-                            <button
-                              type="button"
-                              onClick={() => setShowHints(prev => ({ ...prev, [qIdx]: !prev[qIdx] }))}
-                              className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold transition"
-                            >
-                              <Lightbulb size={13} />
-                              <span>{showHints[qIdx] ? "Hide Hint" : "Need a hint?"}</span>
-                            </button>
-                            {showHints[qIdx] && (
-                              <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2 shadow-xs">
-                                <Lightbulb size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                                <span><strong>Hint:</strong> {q.hint}</span>
-                              </div>
-                            )}
-                          </div>
+                      <button
+                        key={optIdx}
+                        disabled={submitted}
+                        onClick={() => {
+                          if (!submitted) {
+                            setSelectedAnswers(prev => ({ ...prev, [activeQuizIndex]: optIdx }));
+                          }
+                        }}
+                        className={`w-full py-3 px-4 text-left text-sm rounded-xl transition-all border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
+                      >
+                        <span>{opt}</span>
+                        {submitted && optIdx === quiz[activeQuizIndex].correctIndex && (
+                          <span className="text-emerald-600 text-[11px] font-bold uppercase tracking-wider">Correct Answer</span>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
 
-                {/* Score and Submit Section */}
-                <div className="w-full mt-8 pt-6 border-t border-[var(--line)] flex flex-col items-center gap-4">
-                  {submitted ? (
-                    <div className="w-full text-center space-y-3">
-                      <div className="text-xl font-bold text-[var(--ink)] flex items-center justify-center gap-2">
-                        <Sparkles className="text-[var(--amber)]" size={24} />
-                        Quiz Result: {score}/{quiz.length} Correct
-                      </div>
-                      <p className="text-sm text-[var(--muted)]">
-                        {rewardOutcome?.awarded ? (
-                          score === quiz.length 
-                            ? `Outstanding job! You've mastered this module checkpoint. +${rewardOutcome.amount} Stemios Credited to Your Account Balance!` 
-                            : `Good effort! You scored ${score}/${quiz.length}. +${rewardOutcome.amount} Stemios Credited to Your Account Balance!`
-                        ) : rewardOutcome?.alreadyCompleted ? (
-                          `Quiz completed with ${score}/${quiz.length} correct. (Note: Stemios are awarded only once per quiz. No additional Stemios were added).`
-                        ) : (
-                          "Review the correct answers above and try again to earn Stemios!"
-                        )}
-                      </p>
-                      <button
-                        onClick={() => {
-                          setSubmitted(false);
-                          setScore(null);
-                          setSelectedAnswers({});
-                          setShowHints({});
-                          setRewardOutcome(null);
-                        }}
-                        className="px-6 py-2.5 bg-[var(--surface)] hover:bg-[var(--paper-2)] text-[var(--ink)] font-bold text-xs rounded-xl border border-[var(--line)] transition shadow-sm mt-2"
-                      >
-                        Try Quiz Again
-                      </button>
-                    </div>
-                  ) : (
+                {quiz[activeQuizIndex].hint && (
+                  <div className="pt-2 border-t border-[var(--line)]/50">
                     <button
-                      onClick={async () => {
-                        if (Object.keys(selectedAnswers).length < quiz.length) {
-                          alert(`Please select an answer for all ${quiz.length} question(s) before submitting!`);
-                          return;
-                        }
-                        let correctCount = 0;
-                        quiz.forEach((q: any, idx: number) => {
-                          if (selectedAnswers[idx] === q.correctIndex) {
-                            correctCount++;
-                          }
-                        });
-                        setScore(correctCount);
-                        setSubmitted(true);
-
-                        if (correctCount > 0) {
-                          const earnedStemios = Math.max(10, Math.round((correctCount / quiz.length) * 50));
-                          const res = await awardStemios(undefined, lessonId, earnedStemios);
-                          setRewardOutcome(res);
-                        } else {
-                          setRewardOutcome({ awarded: false, amount: 0, alreadyCompleted: false });
-                        }
-                      }}
-                      className="w-full py-3.5 bg-[var(--amber)] hover:bg-amber-600 text-white font-bold text-sm rounded-xl transition shadow-md active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                      type="button"
+                      onClick={() => setShowHints(prev => ({ ...prev, [activeQuizIndex]: !prev[activeQuizIndex] }))}
+                      className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold transition"
                     >
-                      <CheckCircle size={18} />
-                      Submit Quiz Answers
+                      <Lightbulb size={13} />
+                      <span>{showHints[activeQuizIndex] ? "Hide Hint" : "Need a hint?"}</span>
                     </button>
-                  )}
+                    {showHints[activeQuizIndex] && (
+                      <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2 shadow-xs">
+                        <Lightbulb size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                        <span><strong>Hint:</strong> {quiz[activeQuizIndex].hint}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Question Navigation Controls inside Card */}
+                <div className="flex items-center justify-between pt-3 border-t border-[var(--line)]/60">
+                  <button
+                    disabled={activeQuizIndex === 0}
+                    onClick={() => setActiveQuizIndex(prev => Math.max(0, prev - 1))}
+                    className="flex items-center gap-1 px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--paper-2)] border border-[var(--line)] rounded-xl text-xs font-bold text-[var(--ink)] disabled:opacity-40 transition cursor-pointer"
+                  >
+                    <ChevronLeft size={16} /> Previous Question
+                  </button>
+
+                  <span className="text-xs font-mono font-bold text-[var(--muted)]">
+                    {Object.keys(selectedAnswers).length}/{quiz.length} Answered
+                  </span>
+
+                  <button
+                    disabled={activeQuizIndex >= quiz.length - 1}
+                    onClick={() => setActiveQuizIndex(prev => Math.min(quiz.length - 1, prev + 1))}
+                    className="flex items-center gap-1 px-3.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--paper-2)] border border-[var(--line)] rounded-xl text-xs font-bold text-[var(--ink)] disabled:opacity-40 transition cursor-pointer"
+                  >
+                    Next Question <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             )}
-            {(!lesson.media?.videoUrl && quiz.length === 0) && (
-              <div className="text-xl font-bold flex items-center gap-2 text-[var(--amber)]">
-                <Sparkles size={24} /> Lesson Completed!
+
+            {/* Score / Submission Section */}
+            <div className="w-full mt-6 pt-4 border-t border-[var(--line)] flex flex-col items-center gap-4">
+              {submitted ? (
+                <div className="w-full text-center space-y-3">
+                  <div className="text-xl font-bold text-[var(--ink)] flex items-center justify-center gap-2">
+                    <Sparkles className="text-[var(--amber)]" size={24} />
+                    Quiz Result: {score}/{quiz.length} Correct
+                  </div>
+                  <p className="text-sm text-[var(--muted)]">
+                    {rewardOutcome?.awarded ? (
+                      score === quiz.length 
+                        ? `Outstanding job! You've mastered this module checkpoint. +${rewardOutcome.amount} Stemios Credited to Your Account Balance!` 
+                        : `Good effort! You scored ${score}/${quiz.length}. +${rewardOutcome.amount} Stemios Credited to Your Account Balance!`
+                    ) : rewardOutcome?.alreadyCompleted ? (
+                      `Quiz completed with ${score}/${quiz.length} correct. (Note: Stemios are awarded only once per quiz. No additional Stemios were added).`
+                    ) : (
+                      "Review the correct answers above and try again to earn Stemios!"
+                    )}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSubmitted(false);
+                      setScore(null);
+                      setSelectedAnswers({});
+                      setShowHints({});
+                      setRewardOutcome(null);
+                    }}
+                    className="px-6 py-2.5 bg-[var(--surface)] hover:bg-[var(--paper-2)] text-[var(--ink)] font-bold text-xs rounded-xl border border-[var(--line)] transition shadow-sm mt-2 cursor-pointer"
+                  >
+                    Try Quiz Again
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (Object.keys(selectedAnswers).length < quiz.length) {
+                      alert(`Please select an answer for all ${quiz.length} question(s) before submitting!`);
+                      return;
+                    }
+                    let correctCount = 0;
+                    quiz.forEach((q: any, idx: number) => {
+                      if (selectedAnswers[idx] === q.correctIndex) {
+                        correctCount++;
+                      }
+                    });
+                    setScore(correctCount);
+                    setSubmitted(true);
+
+                    if (correctCount > 0) {
+                      const earnedStemios = Math.max(10, Math.round((correctCount / quiz.length) * 50));
+                      const res = await awardStemios(undefined, lessonId, earnedStemios);
+                      setRewardOutcome(res);
+                    } else {
+                      setRewardOutcome({ awarded: false, amount: 0, alreadyCompleted: false });
+                    }
+                  }}
+                  className="w-full py-3.5 bg-[var(--amber)] hover:bg-amber-600 text-white font-bold text-sm rounded-xl transition shadow-md active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle size={18} />
+                  Submit Quiz Answers
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Pop-Up Contained Modal for Questions 1, 2, 3... Selection */}
+        {isQuizModalOpen && quiz.length > 0 && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-200">
+            <div className="w-full max-w-2xl bg-[var(--surface)] border border-[var(--line)] rounded-[24px] p-6 md:p-8 max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col gap-5 relative">
+              <button 
+                onClick={() => setIsQuizModalOpen(false)}
+                className="absolute top-5 right-5 p-2 rounded-full bg-[var(--paper-2)] hover:bg-[var(--paper)] text-[var(--muted)] hover:text-[var(--ink)] border border-[var(--line)] transition cursor-pointer"
+                title="Close Quiz Pop-Up"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 border-b border-[var(--line)] pb-4">
+                <CheckCircle className="text-[var(--amber)]" size={26} />
+                <div>
+                  <h3 className="text-xl font-bold text-[var(--ink)]">Lesson Check-Up Quiz Pop-Up</h3>
+                  <p className="text-xs text-[var(--muted)] font-medium">Interactive Question Selection View</p>
+                </div>
               </div>
-            )}
+
+              {/* Question Tabs in Pop-Up Modal */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider shrink-0 mr-1">
+                  Questions:
+                </span>
+                {quiz.map((q: any, qIdx: number) => {
+                  const isSelected = activeQuizIndex === qIdx;
+                  const isAnswered = selectedAnswers[qIdx] !== undefined;
+                  const isCorrect = submitted && selectedAnswers[qIdx] === q.correctIndex;
+
+                  return (
+                    <button
+                      key={qIdx}
+                      onClick={() => setActiveQuizIndex(qIdx)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 border cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--amber)] text-white border-amber-600 shadow-sm'
+                          : isAnswered
+                          ? 'bg-[var(--paper-2)] text-[var(--ink)] border-[var(--amber)]/50'
+                          : 'bg-[var(--paper-2)] text-[var(--muted)] border-[var(--line)] hover:text-[var(--ink)]'
+                      }`}
+                    >
+                      <span>Question {qIdx + 1}</span>
+                      {submitted && (
+                        <span className="text-[10px] font-black">
+                          {isCorrect ? '✓' : '✕'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Question in Modal */}
+              {quiz[activeQuizIndex] && (
+                <div className="w-full bg-[var(--paper-2)] p-5 rounded-2xl border border-[var(--line)] space-y-4">
+                  <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] font-bold uppercase">
+                    <span>Question {activeQuizIndex + 1} of {quiz.length}</span>
+                    {submitted && (
+                      <span className={selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+                        {selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "✓ Correct" : "✕ Incorrect"}
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="text-base font-bold text-[var(--ink)]">{quiz[activeQuizIndex].question}</h4>
+
+                  <div className="flex flex-col gap-2">
+                    {(quiz[activeQuizIndex].options || []).map((opt: string, optIdx: number) => {
+                      const isSelected = selectedAnswers[activeQuizIndex] === optIdx;
+                      let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)]";
+
+                      if (submitted) {
+                        if (optIdx === quiz[activeQuizIndex].correctIndex) {
+                          btnStyle = "bg-emerald-500/15 border-emerald-500 text-emerald-800 font-bold shadow-sm";
+                        } else if (isSelected && optIdx !== quiz[activeQuizIndex].correctIndex) {
+                          btnStyle = "bg-rose-500/15 border-rose-500 text-rose-800 font-medium";
+                        } else {
+                          btnStyle = "bg-[var(--surface)] text-[var(--muted)] opacity-50 border-[var(--line)]";
+                        }
+                      } else if (isSelected) {
+                        btnStyle = "bg-amber-500/15 border-[var(--amber)] text-[var(--ink)] font-bold shadow-sm";
+                      }
+
+                      return (
+                        <button
+                          key={optIdx}
+                          disabled={submitted}
+                          onClick={() => {
+                            if (!submitted) {
+                              setSelectedAnswers(prev => ({ ...prev, [activeQuizIndex]: optIdx }));
+                            }
+                          }}
+                          className={`w-full py-3 px-4 text-left text-sm rounded-xl transition border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
+                        >
+                          <span>{opt}</span>
+                          {submitted && optIdx === quiz[activeQuizIndex].correctIndex && (
+                            <span className="text-emerald-600 text-[11px] font-bold uppercase">Correct</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {quiz[activeQuizIndex].hint && (
+                    <div className="pt-2 border-t border-[var(--line)]/50">
+                      <button
+                        type="button"
+                        onClick={() => setShowHints(prev => ({ ...prev, [activeQuizIndex]: !prev[activeQuizIndex] }))}
+                        className="inline-flex items-center gap-1.5 text-xs text-amber-600 hover:underline font-semibold"
+                      >
+                        <Lightbulb size={13} />
+                        <span>{showHints[activeQuizIndex] ? "Hide Hint" : "Need a hint?"}</span>
+                      </button>
+                      {showHints[activeQuizIndex] && (
+                        <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 dark:text-amber-200">
+                          <strong>Hint:</strong> {quiz[activeQuizIndex].hint}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-3 border-t border-[var(--line)]/60">
+                    <button
+                      disabled={activeQuizIndex === 0}
+                      onClick={() => setActiveQuizIndex(prev => Math.max(0, prev - 1))}
+                      className="px-3.5 py-1.5 bg-[var(--surface)] border border-[var(--line)] rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer"
+                    >
+                      <ChevronLeft size={16} /> Prev Question
+                    </button>
+                    <button
+                      disabled={activeQuizIndex >= quiz.length - 1}
+                      onClick={() => setActiveQuizIndex(prev => Math.min(quiz.length - 1, prev + 1))}
+                      className="px-3.5 py-1.5 bg-[var(--surface)] border border-[var(--line)] rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer"
+                    >
+                      Next Question <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-between pt-4 border-t border-[var(--line)]">
+                <button
+                  onClick={() => setIsQuizModalOpen(false)}
+                  className="px-4 py-2 bg-[var(--paper-2)] hover:bg-[var(--paper)] text-[var(--ink)] font-bold text-xs rounded-xl border border-[var(--line)] cursor-pointer"
+                >
+                  Close Pop-Up
+                </button>
+                {!submitted && (
+                  <button
+                    onClick={async () => {
+                      if (Object.keys(selectedAnswers).length < quiz.length) {
+                        alert(`Please select an answer for all ${quiz.length} question(s) before submitting!`);
+                        return;
+                      }
+                      let correctCount = 0;
+                      quiz.forEach((q: any, idx: number) => {
+                        if (selectedAnswers[idx] === q.correctIndex) {
+                          correctCount++;
+                        }
+                      });
+                      setScore(correctCount);
+                      setSubmitted(true);
+                      if (correctCount > 0) {
+                        const earnedStemios = Math.max(10, Math.round((correctCount / quiz.length) * 50));
+                        const res = await awardStemios(undefined, lessonId, earnedStemios);
+                        setRewardOutcome(res);
+                      } else {
+                        setRewardOutcome({ awarded: false, amount: 0, alreadyCompleted: false });
+                      }
+                    }}
+                    className="px-5 py-2 bg-[var(--amber)] hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle size={15} /> Submit Quiz
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -748,7 +1271,7 @@ export default function LessonViewer({ lessonId, onBack }: { lessonId: string, o
             </button>
             
             <button 
-              disabled={currentSlide >= slides.length && (quiz.length === 0 && !lesson.media?.videoUrl)}
+              disabled={currentSlide >= slides.length && (quiz.length === 0 && !lesson?.media?.videoUrl)}
               onClick={() => setCurrentSlide(prev => Math.min(slides.length, prev + 1))}
               className="w-12 h-12 flex items-center justify-center bg-[var(--amber)] hover:bg-amber-600 text-white rounded-full border border-amber-600 disabled:opacity-40 transition-all shadow-sm active:scale-95"
               title="Next Slide"

@@ -200,32 +200,32 @@ export const EXPANDED_MILESTONES: MilestoneDef[] = [
   {
     id: 'resource-explorer',
     title: 'Resource Explorer',
-    description: 'Maintain a 25%+ resource opening rate across all reference materials.',
+    description: 'Open at least 5 reference materials or maintain a 25%+ resource opening rate.',
     category: 'resource_opening',
-    requirementLabel: '25% Resources Opened',
+    requirementLabel: '5 Resources Opened / 25%',
     stemiosReward: 30,
     iconName: 'Eye',
-    checkUnlocked: (m) => m.resourceOpenRatePct >= 25
+    checkUnlocked: (m) => m.openedResourcesCount >= 5 || m.resourceOpenRatePct >= 25
   },
   {
     id: 'knowledge-seeker',
     title: 'Knowledge Seeker',
-    description: 'Open and explore at least 50% of the reference materials and datasets.',
+    description: 'Open at least 10 reference materials and datasets or achieve a 50%+ resource open rate.',
     category: 'resource_opening',
-    requirementLabel: '50% Resources Opened',
+    requirementLabel: '10 Resources Opened / 50%',
     stemiosReward: 75,
     iconName: 'Zap',
-    checkUnlocked: (m) => m.resourceOpenRatePct >= 50
+    checkUnlocked: (m) => m.openedResourcesCount >= 10 || m.resourceOpenRatePct >= 50
   },
   {
     id: 'research-scholar',
     title: 'Research Scholar',
-    description: 'Demonstrate deep inquiry with an 80%+ resource opening rate.',
+    description: 'Demonstrate deep inquiry with 15+ resources opened or an 80%+ resource open rate.',
     category: 'resource_opening',
-    requirementLabel: '80% Resources Opened',
+    requirementLabel: '15 Resources Opened / 80%',
     stemiosReward: 150,
     iconName: 'Star',
-    checkUnlocked: (m) => m.resourceOpenRatePct >= 80
+    checkUnlocked: (m) => m.openedResourcesCount >= 15 || m.resourceOpenRatePct >= 80
   },
 
   // 4. Resource Inclusion Milestones (% of resources added to lessons)

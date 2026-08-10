@@ -9,8 +9,20 @@ export interface User {
   isAdmin: boolean;
   stemios: number;
   streak: number;
+  classId?: string;
   completedQuizzes?: string[];
   completedLessons?: string[];
+}
+
+export interface VirtualClassroom {
+  classId: string;
+  googleClassroomCourseId?: string;
+  name: string;
+  joinCode: string; // Shareable link identifier
+  studentIds: string[]; // Array of student UIDs enrolled in this class
+  createdAt: string;
+  teacherId?: string;
+  description?: string;
 }
 
 // Admin Live-Editing Runtime Engine Config

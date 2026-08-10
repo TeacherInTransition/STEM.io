@@ -36,6 +36,9 @@ export default function AIFoundations({ user, onUnitSelect }: { user?: User, onU
   }, []);
 
   const handleUnitClick = (unit: any) => {
+    if (unit.id?.toLowerCase() !== 'u1') {
+      return;
+    }
     if (onUnitSelect) {
       onUnitSelect(unit);
     }
@@ -90,44 +93,70 @@ export default function AIFoundations({ user, onUnitSelect }: { user?: User, onU
                 {isSelected && (
                   <div className="mt-4 p-8 md:p-12 bg-[var(--paper-2)] rounded-[32px] animate-in slide-in-from-top-2 fade-in duration-300 relative">
                     <CarouselRow>
-                      {track.units.map((unit, i) => (
-                        <div 
-                          key={unit.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnitClick(unit);
-                          }}
-                          className="group relative flex flex-col items-center w-[160px] shrink-0 cursor-pointer"
-                        >
-                          {/* The horizontal line connecting to the next unit */}
-                          {i < track.units.length - 1 && (
-                            <div className="absolute top-[80px] left-[100%] w-[32px] h-[2px] bg-[var(--line)] z-0"></div>
-                          )}
-                          
-                          {/* The white card */}
-                          <div className="w-[160px] h-[160px] bg-[var(--surface)] rounded-[24px] shadow-sm border border-[var(--line)] flex flex-col items-center justify-center relative transition-all hover:shadow-md group-hover:border-[var(--amber)]">
-                            {/* Top-left tag */}
-                            <div className="absolute top-4 left-4 px-2.5 py-1 bg-[var(--paper)] text-[var(--muted)] text-[10px] font-mono rounded-md border border-[var(--line)] shadow-sm">
-                              <span className="text-[var(--amber)] font-bold">{unit.id.toUpperCase()}</span> <span className="opacity-50 mx-1">|</span> {unit.tags[0] || 'Unit'}
+                      {track.units.map((unit, i) => {
+                        const isAccessible = unit.id.toLowerCase() === 'u1';
+                        return (
+                          <div 
+                            key={unit.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isAccessible) {
+                                handleUnitClick(unit);
+                              }
+                            }}
+                            className={`group relative flex flex-col items-center w-[160px] shrink-0 ${
+                              isAccessible ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                            }`}
+                          >
+                            {/* The horizontal line connecting to the next unit */}
+                            {i < track.units.length - 1 && (
+                              <div className="absolute top-[80px] left-[100%] w-[32px] h-[2px] bg-[var(--line)] z-0"></div>
+                            )}
+                            
+                            {/* The card container */}
+                            <div className={`w-[160px] h-[160px] rounded-[24px] shadow-sm border flex flex-col items-center justify-center relative transition-all ${
+                              isAccessible 
+                                ? 'bg-[var(--surface)] border-[var(--line)] hover:shadow-md group-hover:border-[var(--amber)]' 
+                                : 'bg-stone-200/70 border-stone-300 grayscale'
+                            }`}>
+                              {/* Top-left tag */}
+                              <div className="absolute top-4 left-4 px-2.5 py-1 bg-[var(--paper)] text-[var(--muted)] text-[10px] font-mono rounded-md border border-[var(--line)] shadow-sm">
+                                <span className={isAccessible ? "text-[var(--amber)] font-bold" : "text-stone-500 font-bold"}>{unit.id.toUpperCase()}</span> <span className="opacity-50 mx-1">|</span> {unit.tags[0] || 'Unit'}
+                              </div>
+
+                              {/* Top-right lock icon if disabled */}
+                              {!isAccessible && (
+                                <div className="absolute top-4 right-4">
+                                  <Lock className="w-3.5 h-3.5 text-stone-500" />
+                                </div>
+                              )}
+                              
+                              {/* Center circle & icon */}
+                              <div className={`w-[72px] h-[72px] rounded-full flex items-center justify-center transition-transform duration-300 ${
+                                isAccessible 
+                                  ? 'bg-[var(--paper-2)] text-[var(--amber)] group-hover:scale-110' 
+                                  : 'bg-stone-300/80 text-stone-500'
+                              }`}>
+                                {getUnitIcon(i)}
+                              </div>
                             </div>
                             
-                            {/* Center circle & icon */}
-                            <div className="w-[72px] h-[72px] rounded-full bg-[var(--paper-2)] text-[var(--amber)] flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-                              {getUnitIcon(i)}
+                            {/* Below the card */}
+                            <div className="mt-5 flex flex-col items-center text-center px-1">
+                              <h4 className={`font-serif font-bold text-[15px] leading-tight mb-3 transition-colors ${
+                                isAccessible ? 'text-[var(--ink)] group-hover:text-[var(--amber)]' : 'text-stone-500'
+                              }`}>
+                                {unit.title}
+                              </h4>
+                              <div className={`text-[11px] font-bold px-3 py-1.5 rounded-md font-mono ${
+                                isAccessible ? 'text-[var(--amber)] bg-[var(--amber-tint)]' : 'text-stone-500 bg-stone-200/80'
+                              }`}>
+                                {isAccessible ? `+${unit.reward} Stemios` : 'Locked'}
+                              </div>
                             </div>
                           </div>
-                          
-                          {/* Below the card */}
-                          <div className="mt-5 flex flex-col items-center text-center px-1">
-                            <h4 className="font-serif font-bold text-[15px] text-[var(--ink)] leading-tight mb-3 group-hover:text-[var(--amber)] transition-colors">
-                              {unit.title}
-                            </h4>
-                            <div className="text-[11px] font-bold text-[var(--amber)] bg-[var(--amber-tint)] px-3 py-1.5 rounded-md font-mono">
-                              +{unit.reward} Stemios
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </CarouselRow>
                   </div>
                 )}

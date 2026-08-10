@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import { db, awardStemios, fetchResourcesFromDb, saveResourcesToDb } from '../lib/firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
+import { UNIT_1_MASTER_PLAN } from '../data/unitMasterPlans';
 
 const isDocumentUrl = (url: string | undefined | null): boolean => {
   if (!url) return false;
@@ -339,92 +340,108 @@ function MaterialItemCard({ mat }: { mat: any; key?: any }) {
   );
 }
 
+function buildMasterLessonCatalog() {
+  const catalog: Record<string, any> = {};
+  UNIT_1_MASTER_PLAN.lessons.forEach((m) => {
+    catalog[m.id] = {
+      id: m.id,
+      lessonNumber: m.lessonNumber,
+      tierLevel: m.tierLevel,
+      lessonTitle: `Lesson ${m.lessonNumber}: ${m.title}`,
+      description: m.description,
+      concepts: m.concepts,
+      standards: m.standards,
+      mathLoad: m.mathLoad,
+      media: { videoUrl: "" },
+      slides: [
+        {
+          slideNumber: 1,
+          title: `Warm-Up: ${m.warmUp.title}`,
+          content: `<p><strong>Duration:</strong> ${m.warmUp.duration}</p><p>${m.warmUp.activity}</p><p><em>💡 Pedagogical Purpose:</em> ${m.warmUp.pedagogicalConnection}</p>`,
+          imageUrl: ""
+        },
+        {
+          slideNumber: 2,
+          title: `Direct Instruction: ${m.instructionAndSandbox.title}`,
+          content: `<p><strong>Direct Instruction:</strong> ${m.instructionAndSandbox.directInstruction}</p><p><strong>Key Concepts:</strong> ${m.concepts}</p><p><strong>Standards Alignment:</strong> ${m.standards}</p>`,
+          imageUrl: ""
+        },
+        {
+          slideNumber: 3,
+          title: `Collaborative Activity & Sandbox`,
+          content: `<p><strong>Collaborative Task:</strong> ${m.instructionAndSandbox.collaborativeActivity}</p><p><strong>Math Complexity:</strong> ${m.mathLoad}</p>`,
+          imageUrl: ""
+        },
+        {
+          slideNumber: 4,
+          title: `Exit Ticket: ${m.exitTicket.title}`,
+          content: `<p><strong>Duration:</strong> ${m.exitTicket.duration}</p><p><strong>Prompt:</strong> ${m.exitTicket.prompt}</p>`,
+          imageUrl: ""
+        }
+      ],
+      quiz: [
+        {
+          question: `What primary concept is covered in Lesson ${m.lessonNumber} (${m.title})?`,
+          options: [
+            m.concepts.split(',')[0] || m.concepts,
+            "Manual binary drive formatting",
+            "Analog radio signal soldering",
+            "Static tape backup indexing"
+          ],
+          correctIndex: 0,
+          hint: `Focus on the core concept: ${m.concepts}`
+        },
+        {
+          question: "How should human auditing be applied in this lesson?",
+          options: [
+            "By evaluating outputs for accuracy, bias, and applying human-in-the-loop verification.",
+            "By blindly trusting computer outputs without verification.",
+            "By skipping exit reflection prompts and practical sandboxes.",
+            "By turning off safety checks completely."
+          ],
+          correctIndex: 0,
+          hint: "Always practice active human-in-the-loop evaluation."
+        }
+      ]
+    };
+  });
+  return catalog;
+}
+
 interface LessonBuilderProps {
   user: User;
   onBack?: () => void;
 }
 
 export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
-  const [activeLessonId, setActiveLessonId] = useState('history-of-ai');
+  const [activeLessonId, setActiveLessonId] = useState('l1');
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [lessonCatalog, setLessonCatalog] = useState<any>({
-    'what-is-ai': {
-        lessonTitle: "What is Artificial Intelligence?",
-        media: { videoUrl: "https://www.youtube.com/embed/ad79nYk2kEg" },
-        slides: [{
-            slideNumber: 1,
-            title: "Defining the AI Frontier",
-            content: "<p>Artificial intelligence is a branch of computer science focused on building smart machines capable of performing tasks that typically require human intelligence.</p><ul><li>🧠 Machine Learning</li><li>🗣️ NLP Processing</li><li>🚗 Robotics & Automation</li></ul>",
-            imageUrl: ""
-        }],
-        quiz: [{
-            question: "What core aspect makes computer systems 'intelligent'?",
-            options: ["Running faster clock speeds", "Adapting actions based on raw data trends", "Having RGB lighting profiles", "Storing infinitely large files"],
-            correctIndex: 1,
-            hint: "Think about pattern recognition and adjusting outputs based on input data."
-        }]
-    },
-    'history-of-ai': {
-        lessonTitle: "The History of AI",
-        media: { videoUrl: "https://www.youtube.com/embed/2ePf9rue1Ao" },
-        slides: [
-            {
-                slideNumber: 1,
-                title: "The Birth of AI (1956)",
-                content: "<p>The official birth of Artificial Intelligence can be traced back to the summer of <strong>1956</strong> at the Dartmouth Summer Research Project.</p>",
-                imageUrl: ""
-            },
-            {
-                slideNumber: 2,
-                title: "The AI Winters",
-                content: "<p>When initial promises failed to translate into real products, severe funding cuts followed, resulting in prolonged periods known as <strong>AI Winters</strong>.</p>",
-                imageUrl: ""
-            }
-        ],
-        quiz: [{
-            question: "What university hosted the summer project where the term AI was coined?",
-            options: ["Harvard University", "Dartmouth College", "Stanford University", "Oxford University"],
-            correctIndex: 1,
-            hint: "It is an Ivy League college located in Hanover, New Hampshire."
-        }]
-    },
-    'narrow-vs-general': {
-        lessonTitle: "Narrow vs General AI",
-        media: { videoUrl: "" },
-        slides: [{
-            slideNumber: 1,
-            title: "The Narrow Frontier (ANI)",
-            content: "<p>Artificial Narrow Intelligence, or <strong>Weak AI</strong>, describes algorithms designed to tackle specific, bounded tasks.</p>",
-            imageUrl: ""
-        }],
-        quiz: [{
-            question: "Which of the following is an example of ANI?",
-            options: ["An autonomous AI consciousness", "A personalized recommendation algorithm", "A human robot clone", "Universal solver AI"],
-            correctIndex: 1,
-            hint: "ANI performs specific specialized single-domain tasks like Spotify or Netflix recommendations."
-        }]
-    },
-    'python-basics': {
-        lessonTitle: "Introduction to Python",
-        media: { videoUrl: "" },
-        slides: [{
-            slideNumber: 1,
-            title: "Getting Started with Python Code",
-            content: "<p>Practice running your first block of loop constructs below!</p>",
-            imageUrl: "",
-            isCodeSlide: true,
-            codeSource: "for i in range(1, 6):\n    print(f'Training step: {i}')"
-        }],
-        quiz: [{
-            question: "What is the primary range loop output parameter index?",
-            options: ["Index begins at 0", "Index begins at 1", "Index starts at max limit", "Index is randomized"],
-            correctIndex: 0,
-            hint: "Python uses 0-based indexing by default for sequences and range loops."
-        }]
-    }
-  });
+  const [lessonCatalog, setLessonCatalog] = useState<any>(buildMasterLessonCatalog());
+
+  useEffect(() => {
+    const q = query(collection(db, 'lessons'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setLessonCatalog((prev: any) => {
+        const updated = { ...prev };
+        snapshot.docs.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.lessonTitle) {
+            updated[docSnap.id] = {
+              ...updated[docSnap.id],
+              ...data,
+              id: docSnap.id
+            };
+          }
+        });
+        return updated;
+      });
+    }, (error) => {
+      console.error("Error subscribing to published lessons in LessonBuilder:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const [jsonPaste, setJsonPaste] = useState('');
   const [codeOutput, setCodeOutput] = useState('');
@@ -567,6 +584,9 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const handleUpdateLessonMeta = (field: string, value: string) => {
     setLessonCatalog((prev: any) => {
         const updated = { ...prev };
+        if (!updated[activeLessonId]) {
+            updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
+        }
         if (field === 'lessonTitle') {
             updated[activeLessonId].lessonTitle = value;
         } else if (field === 'videoUrl') {
@@ -580,7 +600,18 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const handleUpdateSlide = (field: string, value: any) => {
     setLessonCatalog((prev: any) => {
         const updated = { ...prev };
-        updated[activeLessonId].slides[currentSlideIndex][field] = value;
+        if (!updated[activeLessonId]) {
+            updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
+        }
+        if (!updated[activeLessonId].slides) updated[activeLessonId].slides = [];
+        if (!updated[activeLessonId].slides[currentSlideIndex]) return prev;
+
+        const newSlides = [...updated[activeLessonId].slides];
+        newSlides[currentSlideIndex] = {
+            ...newSlides[currentSlideIndex],
+            [field]: value
+        };
+        updated[activeLessonId].slides = newSlides;
         return updated;
     });
   };
@@ -651,6 +682,9 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const addQuizQuestion = () => {
     setLessonCatalog((prev: any) => {
       const updated = { ...prev };
+      if (!updated[activeLessonId]) {
+        updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
+      }
       const currentQuiz = updated[activeLessonId].quiz || [];
       updated[activeLessonId].quiz = [
         ...currentQuiz,
@@ -668,6 +702,7 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const deleteQuizQuestion = (qIdx: number) => {
     setLessonCatalog((prev: any) => {
       const updated = { ...prev };
+      if (!updated[activeLessonId]) return prev;
       const currentQuiz = [...(updated[activeLessonId].quiz || [])];
       currentQuiz.splice(qIdx, 1);
       updated[activeLessonId].quiz = currentQuiz;
@@ -678,6 +713,7 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const duplicateQuizQuestion = (qIdx: number) => {
     setLessonCatalog((prev: any) => {
       const updated = { ...prev };
+      if (!updated[activeLessonId]) return prev;
       const currentQuiz = [...(updated[activeLessonId].quiz || [])];
       if (currentQuiz[qIdx]) {
         const copy = JSON.parse(JSON.stringify(currentQuiz[qIdx]));
@@ -692,6 +728,7 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const updateQuizQuestion = (qIdx: number, field: string, value: any, optIdx?: number) => {
     setLessonCatalog((prev: any) => {
       const updated = { ...prev };
+      if (!updated[activeLessonId]) return prev;
       const currentQuiz = [...(updated[activeLessonId].quiz || [])];
       if (!currentQuiz[qIdx]) return updated;
 
@@ -715,20 +752,25 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const addSlide = () => {
     setLessonCatalog((prev: any) => {
         const updated = { ...prev };
-        const newSlides = [...updated[activeLessonId].slides];
+        if (!updated[activeLessonId]) {
+            updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
+        }
+        const newSlides = [...(updated[activeLessonId].slides || [])];
+        const nextNum = newSlides.length + 1;
         newSlides.push({
-            slideNumber: newSlides.length + 1,
-            title: "New Custom Slide Title",
+            slideNumber: nextNum,
+            title: `Slide ${nextNum}: New Custom Slide`,
             content: "<p>Write custom paragraphs here.</p>",
             imageUrl: ""
         });
+        newSlides.forEach((s: any, idx: number) => { s.slideNumber = idx + 1; });
         updated[activeLessonId] = {
             ...updated[activeLessonId],
             slides: newSlides
         };
         return updated;
     });
-    setCurrentSlideIndex(activeLesson.slides.length);
+    setCurrentSlideIndex(activeLesson?.slides?.length || 0);
   };
 
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -774,17 +816,26 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
           
           setLessonCatalog((prev: any) => {
               const updated = { ...prev };
+              if (!updated[activeLessonId]) {
+                  updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
+              }
+              const currentSlides = updated[activeLessonId].slides || [];
               const newSlides = newUrls.map((url, i) => ({
-                  slideNumber: updated[activeLessonId].slides.length + i + 1,
-                  title: `Slide ${updated[activeLessonId].slides.length + i + 1}`,
+                  slideNumber: currentSlides.length + i + 1,
+                  title: `Slide ${currentSlides.length + i + 1}`,
                   content: '',
                   imageUrl: url
               }));
-              updated[activeLessonId].slides = [...updated[activeLessonId].slides, ...newSlides];
+              const combined = [...currentSlides, ...newSlides];
+              combined.forEach((s: any, idx: number) => { s.slideNumber = idx + 1; });
+              updated[activeLessonId] = {
+                  ...updated[activeLessonId],
+                  slides: combined
+              };
               return updated;
           });
           
-          setCurrentSlideIndex(activeLesson?.slides.length || 0);
+          setCurrentSlideIndex(activeLesson?.slides?.length || 0);
           alert(`Successfully imported ${newUrls.length} slides from PDF!`);
           
           // Reset file input
@@ -857,24 +908,27 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
               media: activeLesson.media || {},
               slides: activeLesson.slides || [],
               quiz: activeLesson.quiz || [],
-              authorId: user.id
+              authorId: user.id,
+              concepts: activeLesson.concepts || '',
+              standards: activeLesson.standards || '',
+              mathLoad: activeLesson.mathLoad || '',
+              description: activeLesson.description || ''
           };
           
           // Estimate size by stringifying
           const estimatedSize = JSON.stringify(docData).length;
           if (estimatedSize > 900000) {
-              // Instead of hard-failing, we could attempt to warn them, but for now we'll just throw
-              // However, with our new webp compression, this is much less likely to happen.
               throw new Error("Lesson is too large to publish (over 1MB). Please use a smaller PDF or fewer slides.");
           }
 
-          const newDocRef = doc(collection(db, 'lessons'));
-          await setDoc(newDocRef, {
+          const lessonDocRef = doc(db, 'lessons', activeLessonId);
+          await setDoc(lessonDocRef, {
               ...docData,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
-          });
-          alert("✅ Lesson successfully published to the Arcade!");
+          }, { merge: true });
+
+          alert(`✅ "${docData.lessonTitle}" successfully published to AI Course Unit 1!`);
       } catch (err: any) {
           console.error("Failed to publish lesson:", err);
           alert("Failed to publish lesson: " + (err.message || String(err)));
@@ -916,56 +970,49 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
 
         <div className="flex-grow flex h-[calc(100vh-4rem)] overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-[300px] border-r border-[var(--line)] bg-[var(--paper-2)] flex flex-col justify-between p-4 overflow-y-auto">
+            <aside className="w-[320px] border-r border-[var(--line)] bg-[var(--paper-2)] flex flex-col justify-between p-4 overflow-y-auto">
                 <div className="space-y-6">
                     <div className="bg-[var(--surface)] border border-[var(--line)] rounded-xl p-4 text-center relative overflow-hidden">
-                        <span className="text-[10px] text-[#6366F1] tracking-widest font-bold uppercase block mb-1">Level 1 Path</span>
-                        <h3 className="text-base font-bold text-[var(--ink)] mb-2">Foundations of AI</h3>
-                        <div className="w-20 h-1 bg-gradient-to-r from-[#6366F1] to-[#06B6D4] mx-auto rounded"></div>
+                        <span className="text-[10px] text-[#6366F1] tracking-widest font-bold uppercase block mb-1">AI Course Unit 1</span>
+                        <h3 className="text-base font-bold text-[var(--ink)] mb-1">Problem Solving with AI</h3>
+                        <p className="text-[11px] text-[var(--muted)] font-medium">12 Published Master Lessons</p>
+                        <div className="w-20 h-1 bg-gradient-to-r from-[#6366F1] to-[#06B6D4] mx-auto rounded mt-2"></div>
                     </div>
 
-                    <div className="space-y-4 relative pl-8 py-2">
-                        <div className="absolute left-12 top-0 bottom-0 w-1 bg-[#1f2937] -z-10"></div>
-                        
-                        <div className="flex items-center gap-4 group cursor-pointer relative" onClick={() => handleLessonChange('what-is-ai')}>
-                            <div className="w-10 h-10 rounded-full border-2 border-[#00AD7C] bg-[#00AD7C]/10 text-[#00AD7C] flex items-center justify-center font-bold relative z-10 transition group-hover:scale-105">
-                                <CircleCheck size={16} />
-                            </div>
-                            <div>
-                                <span className="text-xs text-[#00AD7C] font-semibold block">Completed</span>
-                                <p className="text-sm font-semibold text-gray-300 group-hover:text-white transition">What is AI?</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 group cursor-pointer relative" onClick={() => handleLessonChange('history-of-ai')}>
-                            <div className="w-10 h-10 rounded-full border-2 border-[#6366F1] bg-[#6366F1] text-white flex items-center justify-center font-bold relative z-10 transition group-hover:scale-105 shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-                                2
-                            </div>
-                            <div>
-                                <span className="text-xs text-[#6366F1] font-semibold block">Active</span>
-                                <p className="text-sm font-bold text-white group-hover:text-[#06B6D4] transition">The History of AI</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 group cursor-pointer relative" onClick={() => handleLessonChange('narrow-vs-general')}>
-                            <div className="w-10 h-10 rounded-full border-2 border-[#1f2937] bg-gray-900 text-gray-500 flex items-center justify-center font-semibold relative z-10 transition group-hover:scale-105">
-                                3
-                            </div>
-                            <div>
-                                <span className="text-xs text-gray-500 font-semibold block">Locked</span>
-                                <p className="text-sm font-semibold text-gray-400 group-hover:text-gray-300 transition">Narrow vs General AI</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 group cursor-pointer relative" onClick={() => handleLessonChange('python-basics')}>
-                            <div className="w-10 h-10 rounded-full border-2 border-[#1f2937] bg-gray-900 text-gray-500 flex items-center justify-center font-semibold relative z-10 transition group-hover:scale-105">
-                                P
-                            </div>
-                            <div>
-                                <span className="text-xs text-gray-500 font-semibold block">Coding</span>
-                                <p className="text-sm font-semibold text-gray-400 group-hover:text-gray-300 transition">Introduction to Python</p>
-                            </div>
-                        </div>
+                    <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-[var(--muted)] uppercase tracking-wider block px-2 mb-1">Unit 1 Master Lessons</span>
+                        {UNIT_1_MASTER_PLAN.lessons.map((m) => {
+                            const isActive = activeLessonId === m.id;
+                            const isPublishedInCatalog = !!lessonCatalog[m.id];
+                            return (
+                                <div 
+                                    key={m.id}
+                                    onClick={() => handleLessonChange(m.id)}
+                                    className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition ${
+                                        isActive 
+                                            ? 'bg-[#6366F1]/15 border border-[#6366F1] text-white shadow-xs' 
+                                            : 'hover:bg-gray-800/50 text-gray-400 hover:text-gray-200 border border-transparent'
+                                    }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-black shrink-0 ${
+                                        isActive 
+                                            ? 'border-[#6366F1] bg-[#6366F1] text-white' 
+                                            : 'border-gray-700 bg-gray-900 text-gray-400'
+                                    }`}>
+                                        {m.lessonNumber}
+                                    </div>
+                                    <div className="overflow-hidden text-left flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                            <span className="text-[10px] text-[#06B6D4] font-bold uppercase tracking-wider">Lesson {m.lessonNumber}</span>
+                                            {isPublishedInCatalog && (
+                                                <span className="text-[9px] bg-emerald-500/20 text-emerald-400 font-semibold px-1.5 py-0.5 rounded">Synced</span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs font-bold truncate leading-tight">{m.title}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -1307,13 +1354,13 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                                 <ArrowLeft size={16} /> Previous
                             </button>
                             <div className="flex gap-1.5">
-                                {activeLesson?.slides.map((_: any, idx: number) => (
+                                {(activeLesson?.slides || []).map((_: any, idx: number) => (
                                     <div key={idx} className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentSlideIndex ? 'bg-[#6366F1] w-5' : 'bg-gray-200'}`}></div>
                                 ))}
                             </div>
                             <button 
-                                onClick={() => setCurrentSlideIndex(Math.min((activeLesson?.slides.length || 1) - 1, currentSlideIndex + 1))}
-                                disabled={currentSlideIndex === (activeLesson?.slides.length || 1) - 1}
+                                onClick={() => setCurrentSlideIndex(Math.min((activeLesson?.slides?.length || 1) - 1, currentSlideIndex + 1))}
+                                disabled={currentSlideIndex === (activeLesson?.slides?.length || 1) - 1}
                                 className="px-6 py-2.5 bg-[#00AD7C] hover:bg-[#00AD7C]/90 text-white font-bold rounded-lg flex items-center gap-2 transition disabled:opacity-50"
                             >
                                 Next <ArrowRight size={16} />
@@ -1466,7 +1513,7 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                                                     
                                                     setLessonCatalog((prev: any) => {
                                                         const updated = { ...prev };
-                                                        const newSlides = [...updated[activeLessonId].slides];
+                                                        const newSlides = [...(updated[activeLessonId]?.slides || [])];
                                                         newSlides.splice(currentSlideIndex, 1);
                                                         
                                                         // Re-index slide numbers
@@ -1717,7 +1764,7 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {activeLesson.quiz.map((q: any, qIdx: number) => (
+                                        {(activeLesson?.quiz || []).map((q: any, qIdx: number) => (
                                             <div key={qIdx} className="space-y-3 bg-[#111827] border border-[#1f2937] p-4 rounded-xl relative">
                                                 <div className="flex justify-between items-center pb-2 border-b border-[#1f2937]">
                                                     <span className="text-xs font-bold text-[#06B6D4] uppercase">Question {qIdx + 1}</span>

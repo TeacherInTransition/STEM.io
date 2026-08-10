@@ -15,6 +15,7 @@ import { useUser } from './hooks/useUser';
 import { Rocket, X } from 'lucide-react';
 import LessonBuilder from './components/LessonBuilder';
 import ResourcesPage from './components/ResourcesPage';
+import JoinClassModal from './components/JoinClassModal';
 
 export default function App() {
   const [magnifier, setMagnifier] = useState(1);
@@ -30,6 +31,19 @@ export default function App() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [showBetaPopup, setShowBetaPopup] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [urlJoinCode, setUrlJoinCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('joinCode') || urlParams.get('code');
+    if (code) {
+      setUrlJoinCode(code.toUpperCase());
+    } else if (window.location.hash && window.location.hash.includes('joinCode=')) {
+      const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+      const hashCode = hashParams.get('joinCode');
+      if (hashCode) setUrlJoinCode(hashCode.toUpperCase());
+    }
+  }, []);
 
   const [guestUser, setGuestUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('stemio_guest_user');
@@ -81,13 +95,19 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    if (guestUser) {
-      setGuestUser(null);
-      localStorage.removeItem('stemio_guest_user');
-    } else {
+    setGuestUser(null);
+    setFirebaseUser(null);
+    setAccessToken(null);
+    setActiveView('arcade');
+    localStorage.removeItem('stemio_guest_user');
+    localStorage.removeItem('stemio_custom_user');
+    localStorage.removeItem('pendingCadetName');
+    window.dispatchEvent(new CustomEvent('guest-user-updated', { detail: null }));
+    window.dispatchEvent(new CustomEvent('custom-user-updated', { detail: null }));
+    try {
       await logout();
-      setFirebaseUser(null);
-      setAccessToken(null);
+    } catch (e) {
+      console.error('Logout error:', e);
     }
   };
 
@@ -118,7 +138,7 @@ export default function App() {
 
   const isQuickStartUser = firebaseUser?.email?.endsWith('@stemio.local');
 
-  if (!effectiveUser) {
+  if (!effectiveUser || (!guestUser && firebaseUser && !isQuickStartUser && !firebaseUser.emailVerified)) {
     return (
       <AuthScreen 
         onAuthSuccess={handleAuthSuccess} 
@@ -151,17 +171,20 @@ export default function App() {
             {activeView === 'lesson-viewer' && selectedLessonId && (
               <LessonViewer 
                 lessonId={selectedLessonId} 
+                user={effectiveUser}
                 onBack={() => setActiveView('unit-path')} 
               />
             )}
             {activeView === 'unit-path' && selectedUnit && selectedUnit.customLesson && (
               <LessonViewer 
                 lessonId={selectedUnit.id} 
+                user={effectiveUser}
                 onBack={() => setActiveView('arcade')} 
               />
             )}
             {activeView === 'unit-path' && selectedUnit && !selectedUnit.customLesson && (
               <UnitLearningPath 
+                user={effectiveUser}
                 unitId={selectedUnit.id} 
                 unitTitle={selectedUnit.title} 
                 onBack={() => {
@@ -201,6 +224,15 @@ export default function App() {
               <AvatarCustomizer user={effectiveUser} />
             </div>
           </div>
+        )}
+        {/* One-Click Join Class URL Trigger Modal (Students Only) */}
+        {urlJoinCode && !effectiveUser.isAdmin && effectiveUser.role !== 'teacher' && (
+          <JoinClassModal
+            user={effectiveUser}
+            initialCode={urlJoinCode}
+            onClose={() => setUrlJoinCode(null)}
+            onSuccess={() => setUrlJoinCode(null)}
+          />
         )}
       </main>
     </div>

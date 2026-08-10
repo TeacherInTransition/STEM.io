@@ -57,10 +57,17 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
         onAuthSuccess(user, "");
       }
     } catch (err: any) {
-      if (!isSignUp && err.code === 'auth/invalid-credential') {
-         setError("Invalid Cadet Name or Password. If you are new, please register.");
+      if (err.code === 'auth/operation-not-allowed') {
+        console.warn('Cadet auth operation-not-allowed, falling back to guest mode:', cadetName);
+        onGuestStart(cadetName.trim() || 'Cadet');
+        return;
+      }
+      if (!isSignUp && (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password')) {
+         setError(`Cadet "${cadetName}" was not found or password is incorrect. If you are new, click "Register".`);
       } else if (isSignUp && err.code === 'auth/email-already-in-use') {
-         setError("Cadet Name is already taken. Please sign in or choose another name.");
+         setError(`Cadet name "${cadetName}" is already taken. Click "Sign In" or choose another name.`);
+      } else if (err.code === 'auth/weak-password') {
+         setError("Secret Passcode must be at least 6 characters.");
       } else {
          setError(err.message || 'Authentication failed');
       }
@@ -68,6 +75,65 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
       setIsLoggingIn(false);
     }
   };
+
+  const handleResendVerification = async () => {
+    try {
+      await verifyEmail();
+      setVerificationSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend verification');
+    }
+  };
+
+  const isQuickStartUser = firebaseUser?.email?.endsWith('@stemio.local');
+
+  if (firebaseUser && !firebaseUser.emailVerified && !isQuickStartUser) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--paper)] text-[var(--ink)] p-6 text-center">
+        <div className="max-w-md w-full space-y-8">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-black tracking-tighter ledger-title">
+              Verification <span className="highlight-made">Required</span>
+            </h1>
+            <p className="text-[var(--ink-soft)] font-medium">Please verify your email to continue.</p>
+          </div>
+
+          <div className="p-8 bg-[var(--paper-2)] border border-[var(--line)] rounded-2xl shadow-xl space-y-6">
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-[var(--amber-tint)] flex items-center justify-center text-[var(--amber)]">
+                <Mail className="w-10 h-10" />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold">Check your inbox</h2>
+              <p className="text-sm text-[var(--muted)]">
+                We've sent a verification link to <span className="font-bold text-[var(--ink)]">{firebaseUser.email}</span>. 
+                Please click the link to activate your account.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full flex items-center justify-center gap-2 bg-[var(--amber)] text-[var(--paper)] font-bold py-3 px-6 rounded-xl hover:bg-[var(--amber-bright)] transition-all cursor-pointer"
+              >
+                I've verified my email
+              </button>
+              
+              <button
+                onClick={handleResendVerification}
+                disabled={verificationSent}
+                className="w-full text-sm font-medium text-[var(--muted)] hover:text-[var(--amber)] transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {verificationSent ? 'Verification email sent!' : 'Resend verification email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,23 +173,19 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
     }
   };
 
-  const handleResendVerification = async () => {
-    try {
-      await verifyEmail();
-      setVerificationSent(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend verification');
-    }
-  };
-
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--paper)] text-[var(--ink)] p-6 text-center overflow-y-auto">
       <div className="max-w-md w-full space-y-8 py-12">
         <div className="space-y-2">
-          <h1 className="text-4xl font-black tracking-tighter ledger-title">
-            Ledger <span className="highlight-made">&amp;</span> Proof
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-[var(--ink)] drop-shadow-xs">
+            STEM<span className="bg-gradient-to-r from-[var(--amber)] to-amber-600 bg-clip-text text-transparent">.io</span>
           </h1>
-          <p className="text-[var(--ink-soft)] font-medium">The STEM Arcade of the Future.</p>
+          <p className="text-sm md:text-base text-[var(--ink)] font-semibold tracking-wide max-w-sm mx-auto leading-relaxed">
+            Grade 10 Introduction to AI learning platform
+          </p>
+          <p className="text-xs md:text-sm text-[var(--muted)] font-medium tracking-wide max-w-sm mx-auto leading-relaxed">
+            made by Mr. Ilia Sheludiakov
+          </p>
         </div>
 
         <div className="p-8 bg-[var(--paper-2)] border border-[var(--line)] rounded-2xl shadow-xl space-y-6 text-left">
@@ -135,7 +197,7 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
           
           <div className="space-y-1 text-center">
             <h2 className="text-xl font-bold">
-              {mode === 'quick' ? 'Enter the Arcade' : mode === 'login' ? 'Welcome Back, Cadet' : 'Register New Cadet Identity'}
+              {mode === 'quick' ? 'Enter Platform' : mode === 'login' ? 'Welcome Back, Cadet' : 'Register New Cadet Identity'}
             </h2>
             <p className="text-xs text-[var(--muted)]">
               {mode === 'quick' ? 'No email required. Start earning Stemios instantly.' : mode === 'login' ? 'Sign in to sync your progress.' : 'Create your email account to link credentials & balance.'}
@@ -168,7 +230,7 @@ export default function AuthScreen({ onAuthSuccess, onGuestStart, isLoggingIn, s
           </div>
 
           {mode === 'quick' ? (
-            <form className="space-y-4">
+            <form onSubmit={(e) => handleCadetAuth(e, false)} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-mono uppercase tracking-widest text-[var(--muted)] ml-1">Cadet Name</label>
                 <div className="relative">

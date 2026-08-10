@@ -21,12 +21,14 @@ import {
   serverTimestamp, 
   getDoc, 
   arrayUnion, 
+  arrayRemove,
   getDocs, 
   writeBatch, 
   deleteDoc, 
   setDoc,
   query,
-  where
+  where,
+  limit
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -209,35 +211,24 @@ export const emailSignUp = async (email: string, password: string, displayName?:
   }
 
   if (user) {
-    // 4. Save user document in Firestore linking name, email, password, starting balance of stemios, and completion progress
+    // 4. Save user document in Firestore with strictly required schema keys
     const userRef = doc(db, 'users', user.uid);
-    const newUser = {
+    const userProfile = {
       id: user.uid,
       name: nameToUse,
       email: cleanEmail,
-      password: password,
       role: cleanEmail === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
       isAdmin: cleanEmail === 'laankanom2018@gmail.com',
       stemios: 100, // Initial balance
-      completedQuizzes: [],
-      completedLessons: [],
-      streak: 0,
-      createdAt: serverTimestamp()
+      streak: 0
     };
-    await setDoc(userRef, newUser, { merge: true });
+    await setDoc(userRef, userProfile, { merge: true });
 
     // Store custom user session in localStorage so user stays logged in
     localStorage.setItem('stemio_custom_user', JSON.stringify({
-      id: user.uid,
-      name: nameToUse,
-      email: cleanEmail,
+      ...userProfile,
       password: password,
-      role: newUser.role,
-      isAdmin: newUser.isAdmin,
-      stemios: 100,
-      completedQuizzes: [],
-      completedLessons: [],
-      streak: 0
+      completedQuizzes: []
     }));
 
     try {
@@ -254,14 +245,154 @@ export const emailSignUp = async (email: string, password: string, displayName?:
 
 export const cadetSignUp = async (cadetName: string, password: string) => {
   const cleanName = cadetName.trim();
+  if (!cleanName) {
+    const err: any = new Error('Please enter a Cadet Name.');
+    err.code = 'auth/invalid-email';
+    throw err;
+  }
+
+  // Check if cadet name is already registered in Firestore
+  const usersCol = collection(db, 'users');
+  const qName = query(usersCol, where('name', '==', cleanName));
+  const snapName = await getDocs(qName);
+  if (!snapName.empty) {
+    const err: any = new Error(`Cadet name "${cleanName}" is already taken. Click "Sign In" or choose another name.`);
+    err.code = 'auth/email-already-in-use';
+    throw err;
+  }
+
   const email = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
   return emailSignUp(email, password, cleanName);
 };
 
 export const cadetSignIn = async (cadetName: string, password: string) => {
   const cleanName = cadetName.trim();
-  const email = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
-  return emailSignIn(email, password);
+  const syntheticEmail = `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '')}@stemio.local`;
+
+  // 1. Try synthetic email with Firebase Auth first
+  try {
+    const result = await signInWithEmailAndPassword(auth, syntheticEmail, password);
+    const user = result.user;
+    
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      const userProfile = {
+        id: user.uid,
+        name: cleanName,
+        email: syntheticEmail,
+        role: 'student',
+        isAdmin: false,
+        stemios: 100,
+        streak: 0
+      };
+      await setDoc(userRef, userProfile, { merge: true });
+      localStorage.setItem('stemio_custom_user', JSON.stringify({ ...userProfile, password, completedQuizzes: [] }));
+    } else {
+      localStorage.setItem('stemio_custom_user', JSON.stringify(snap.data()));
+    }
+    return user;
+  } catch (err: any) {
+    // 2. Synthetic email sign in failed. Search Firestore users collection by name or email
+    const usersCol = collection(db, 'users');
+    let matchedDocData: any = null;
+    let matchedDocId: string | null = null;
+
+    // Search by exact name
+    const qName = query(usersCol, where('name', '==', cleanName));
+    let snap = await getDocs(qName);
+
+    if (!snap.empty) {
+      matchedDocId = snap.docs[0].id;
+      matchedDocData = snap.docs[0].data();
+    } else {
+      // Search by synthetic email
+      const qEmail = query(usersCol, where('email', '==', syntheticEmail));
+      snap = await getDocs(qEmail);
+      if (!snap.empty) {
+        matchedDocId = snap.docs[0].id;
+        matchedDocData = snap.docs[0].data();
+      } else {
+        // Broad search (case-insensitive match)
+        const allUsersSnap = await getDocs(query(usersCol, limit(50)));
+        const matched = allUsersSnap.docs.find(d => {
+          const data = d.data();
+          return (data.name && data.name.trim().toLowerCase() === cleanName.toLowerCase()) ||
+                 (data.email && data.email.trim().toLowerCase() === syntheticEmail);
+        });
+
+        if (matched) {
+          matchedDocId = matched.id;
+          matchedDocData = matched.data();
+        }
+      }
+    }
+
+    if (!matchedDocData || !matchedDocId) {
+      const error: any = new Error(`Cadet "${cleanName}" was not found or password is incorrect. If you are new, click "Register".`);
+      error.code = 'auth/user-not-found';
+      throw error;
+    }
+
+    // A matching user record was found! Get their real email
+    const userRealEmail = matchedDocData.email || syntheticEmail;
+
+    // Attempt Firebase Auth with their real email and entered password
+    try {
+      const realAuthRes = await signInWithEmailAndPassword(auth, userRealEmail, password);
+      localStorage.setItem('stemio_custom_user', JSON.stringify({ id: matchedDocId, ...matchedDocData }));
+      return realAuthRes.user;
+    } catch (realAuthErr: any) {
+      // Password check fallback
+      if (matchedDocData.password && matchedDocData.password !== password) {
+        const error: any = new Error('Invalid Secret Passcode.');
+        error.code = 'auth/wrong-password';
+        throw error;
+      }
+
+      if (realAuthErr.code === 'auth/wrong-password' || realAuthErr.code === 'auth/invalid-credential') {
+        const error: any = new Error('Invalid Secret Passcode.');
+        error.code = 'auth/wrong-password';
+        throw error;
+      }
+
+      // Anonymous session fallback
+      let activeUser: User | null = auth.currentUser;
+      if (!activeUser) {
+        try {
+          const anonRes = await signInAnonymously(auth);
+          activeUser = anonRes.user;
+        } catch (e) {
+          console.warn('Anon auth during cadet fallback:', e);
+        }
+      }
+
+      if (!activeUser) {
+        activeUser = {
+          uid: matchedDocId,
+          email: userRealEmail,
+          displayName: matchedDocData.name || cleanName,
+          emailVerified: true,
+          isAnonymous: false,
+          metadata: {},
+          providerData: [],
+          refreshToken: '',
+          tenantId: null,
+          delete: async () => {},
+          getIdToken: async () => '',
+          getIdTokenResult: async () => ({} as any),
+          reload: async () => {},
+          toJSON: () => ({}),
+          phoneNumber: null,
+          photoURL: null,
+          providerId: 'custom'
+        } as unknown as User;
+      }
+
+      localStorage.setItem('stemio_custom_user', JSON.stringify({ id: matchedDocId, ...matchedDocData }));
+      return activeUser;
+    }
+  }
 };
 
 export const emailSignIn = async (email: string, password: string): Promise<User> => {
@@ -271,25 +402,21 @@ export const emailSignIn = async (email: string, password: string): Promise<User
     const result = await signInWithEmailAndPassword(auth, cleanEmail, password);
     const user = result.user;
     
-    // Fetch user document from Firestore to ensure balance & progress are linked
+    // Fetch user document from Firestore
     const userRef = doc(db, 'users', user.uid);
     const snap = await getDoc(userRef);
     if (!snap.exists()) {
-      const newUser = {
+      const userProfile = {
         id: user.uid,
         name: user.displayName || cleanEmail.split('@')[0],
         email: cleanEmail,
-        password: password,
         role: cleanEmail === 'laankanom2018@gmail.com' ? 'teacher' : 'student',
         isAdmin: cleanEmail === 'laankanom2018@gmail.com',
         stemios: 100,
-        completedQuizzes: [],
-        completedLessons: [],
-        streak: 0,
-        createdAt: serverTimestamp()
+        streak: 0
       };
-      await setDoc(userRef, newUser, { merge: true });
-      localStorage.setItem('stemio_custom_user', JSON.stringify(newUser));
+      await setDoc(userRef, userProfile, { merge: true });
+      localStorage.setItem('stemio_custom_user', JSON.stringify({ ...userProfile, password, completedQuizzes: [] }));
     } else {
       const existingData = snap.data();
       localStorage.setItem('stemio_custom_user', JSON.stringify(existingData));
@@ -299,13 +426,18 @@ export const emailSignIn = async (email: string, password: string): Promise<User
   } catch (authErr: any) {
     console.warn('Primary email sign in failed (attempting Firestore fallback):', authErr);
 
-    // Fallback: search Firestore by email
+    // Fallback: search Firestore by email or name
     const usersCol = collection(db, 'users');
-    const q = query(usersCol, where('email', '==', cleanEmail));
-    const snap = await getDocs(q);
+    let q = query(usersCol, where('email', '==', cleanEmail));
+    let snap = await getDocs(q);
 
     if (snap.empty) {
-      const err: any = new Error('No account found with this email. Please register first.');
+      q = query(usersCol, where('name', '==', cleanEmail));
+      snap = await getDocs(q);
+    }
+
+    if (snap.empty) {
+      const err: any = new Error('No account found. Please register first.');
       err.code = 'auth/user-not-found';
       throw err;
     }
@@ -429,18 +561,14 @@ export const awardStemios = async (
   const currentUid = (userId && !userId.startsWith('guest_')) ? userId : auth.currentUser?.uid;
   if (currentUid && !currentUid.startsWith('guest_')) {
     try {
-      const userRef = doc(db, 'users', currentUid);
-      const userSnap = await getDoc(userRef);
+      const completionRef = doc(db, 'users', currentUid, 'completions', unitOrLessonId);
+      const completionSnap = await getDoc(completionRef);
 
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const completedList: string[] = userData.completedQuizzes || [];
-        if (completedList.includes(unitOrLessonId)) {
-          return { awarded: false, amount: 0, alreadyCompleted: true };
-        }
+      if (completionSnap.exists()) {
+        return { awarded: false, amount: 0, alreadyCompleted: true };
       }
 
-      // Log activity and update user doc atomically
+      // Log activity
       const activityRef = collection(db, 'activities');
       await addDoc(activityRef, {
         userId: currentUid,
@@ -449,9 +577,17 @@ export const awardStemios = async (
         timestamp: serverTimestamp()
       });
 
+      // Record completion in subcollection users/{uid}/completions/{unitId}
+      await setDoc(completionRef, {
+        unitId: unitOrLessonId,
+        reward: amount,
+        completedAt: serverTimestamp()
+      });
+
+      // Increment stemios balance on user root doc
+      const userRef = doc(db, 'users', currentUid);
       await updateDoc(userRef, {
-        stemios: increment(amount),
-        completedQuizzes: arrayUnion(unitOrLessonId)
+        stemios: increment(amount)
       });
 
       return { awarded: true, amount, alreadyCompleted: false };
@@ -579,6 +715,103 @@ export const fetchResourcesFromDb = async (): Promise<ResourceItem[]> => {
   return DEFAULT_RESOURCES;
 };
 
+// Record student resource open event in Firestore & update analytics
+export interface ResourceOpenRecord {
+  id?: string;
+  userId: string;
+  resourceId: string;
+  lessonId: string;
+  openedAt?: any;
+}
+
+export const recordResourceOpen = async (
+  userId: string,
+  resourceId: string,
+  lessonId?: string
+): Promise<{ success: boolean; isFirstOpen: boolean }> => {
+  if (!userId) return { success: false, isFirstOpen: false };
+
+  let isFirstOpen = false;
+
+  // 1. Update localStorage completed resources list for instant UI responsiveness
+  try {
+    const key = `stemio_completed_resources_${userId}`;
+    const saved = localStorage.getItem(key);
+    const completedList: string[] = saved ? JSON.parse(saved) : [];
+    if (!completedList.includes(resourceId)) {
+      isFirstOpen = true;
+      const updated = [...completedList, resourceId];
+      localStorage.setItem(key, JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.error('Local resource open error:', e);
+  }
+
+  // 2. Persist to Firestore if available
+  try {
+    if (db && !userId.startsWith('guest_')) {
+      // Increment view count on resource doc
+      const resourceRef = doc(db, 'resources', resourceId);
+      await updateDoc(resourceRef, { views: increment(1) }).catch(() => {});
+
+      // Add log entry to resource_opens collection
+      const opensCol = collection(db, 'resource_opens');
+      await addDoc(opensCol, {
+        userId,
+        resourceId,
+        lessonId: lessonId || 'general',
+        openedAt: serverTimestamp()
+      });
+
+      // Award +10 Stemios for opening a new resource
+      if (isFirstOpen) {
+        await awardStemios(userId, `resource_open_${resourceId}`, 10);
+      }
+    }
+  } catch (e) {
+    console.warn('Firestore recordResourceOpen note:', e);
+  }
+
+  return { success: true, isFirstOpen };
+};
+
+// Fetch all recorded student resource open events from Firestore
+export const fetchResourceOpens = async (): Promise<ResourceOpenRecord[]> => {
+  try {
+    const opensCol = collection(db, 'resource_opens');
+    const snap = await getDocs(opensCol);
+    const records: ResourceOpenRecord[] = [];
+    snap.forEach(docSnap => {
+      records.push({ id: docSnap.id, ...docSnap.data() } as ResourceOpenRecord);
+    });
+    return records;
+  } catch (e) {
+    console.warn('Error fetching resource_opens:', e);
+    return [];
+  }
+};
+
+// Fetch ONLY active student profiles (excluding admin & teacher profiles)
+export const fetchStudentUsers = async (): Promise<any[]> => {
+  try {
+    const usersCol = collection(db, 'users');
+    const snap = await getDocs(usersCol);
+    const studentList: any[] = [];
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      // Filter out teachers and admins strictly
+      const isTeacherOrAdmin = data.role === 'teacher' || data.isAdmin === true || data.email === 'laankanom2018@gmail.com';
+      if (!isTeacherOrAdmin && (data.role === 'student' || !data.role)) {
+        studentList.push({ id: docSnap.id, ...data });
+      }
+    });
+    return studentList;
+  } catch (e) {
+    console.warn('Error fetching student users:', e);
+    return [];
+  }
+};
+
 // Bulk save resources
 export const saveResourcesToDb = async (resources: ResourceItem[]): Promise<boolean> => {
   localStorage.setItem('stemio_cached_resources', JSON.stringify(resources));
@@ -606,4 +839,253 @@ export const saveResourcesToDb = async (resources: ResourceItem[]): Promise<bool
   }
   return true;
 };
+
+// ==========================================
+// VIRTUAL CLASSROOM ROSTER & JOIN CODE SYSTEM
+// ==========================================
+
+export interface VirtualClassroom {
+  classId: string;
+  googleClassroomCourseId?: string;
+  name: string;
+  joinCode: string;
+  studentIds: string[];
+  createdAt: string;
+  teacherId?: string;
+  description?: string;
+}
+
+export const DEFAULT_CLASSROOMS: VirtualClassroom[] = [
+  {
+    classId: 'class-stem-10a',
+    name: 'Grade 10 STEM - Section 10A',
+    joinCode: 'STEM10A',
+    googleClassroomCourseId: 'gc-course-78921',
+    studentIds: ['mock1', 'mock2'],
+    createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+    description: 'Grade 10 Physics, Robotics & AI Foundations Cohort'
+  },
+  {
+    classId: 'class-ai-10b',
+    name: 'Grade 10 Computing & AI - Section 10B',
+    joinCode: 'AI10B2026',
+    googleClassroomCourseId: 'gc-course-90412',
+    studentIds: [],
+    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+    description: 'Machine Learning & Ethics Exploration Lab'
+  }
+];
+
+// Fetch all virtual classrooms from Firestore or localStorage fallback
+export const fetchVirtualClassrooms = async (): Promise<VirtualClassroom[]> => {
+  const localSaved = localStorage.getItem('stemio_virtual_classrooms');
+  let localList: VirtualClassroom[] = localSaved ? JSON.parse(localSaved) : DEFAULT_CLASSROOMS;
+
+  try {
+    const classesCol = collection(db, 'classes');
+    const snap = await getDocs(classesCol);
+    if (!snap.empty) {
+      const dbClasses: VirtualClassroom[] = [];
+      snap.forEach(docSnap => {
+        dbClasses.push({ classId: docSnap.id, ...docSnap.data() } as VirtualClassroom);
+      });
+      localStorage.setItem('stemio_virtual_classrooms', JSON.stringify(dbClasses));
+      return dbClasses;
+    } else {
+      // Seed default classrooms to Firestore if empty
+      for (const cls of DEFAULT_CLASSROOMS) {
+        await setDoc(doc(db, 'classes', cls.classId), cls).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('Firestore classrooms fetch note (using local fallback):', err);
+  }
+
+  return localList;
+};
+
+// Create a new Virtual Classroom
+export const createVirtualClassroom = async (
+  name: string,
+  googleClassroomCourseId?: string,
+  teacherId?: string,
+  description?: string
+): Promise<VirtualClassroom> => {
+  const cleanName = name.trim();
+  const rawCode = cleanName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const joinCode = rawCode ? `${rawCode}-${randomSuffix}` : `STEM-${randomSuffix}`;
+  
+  const classId = `class_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  
+  const newClassroom: VirtualClassroom = {
+    classId,
+    name: cleanName,
+    joinCode,
+    googleClassroomCourseId: googleClassroomCourseId?.trim() || '',
+    studentIds: [],
+    createdAt: new Date().toISOString(),
+    teacherId: teacherId || auth.currentUser?.uid || 'teacher-1',
+    description: description?.trim() || 'Grade 10 STEM Virtual Classroom Track'
+  };
+
+  // 1. Local state update
+  const currentList = await fetchVirtualClassrooms();
+  const updatedList = [newClassroom, ...currentList];
+  localStorage.setItem('stemio_virtual_classrooms', JSON.stringify(updatedList));
+
+  // 2. Persist to Firestore
+  try {
+    await setDoc(doc(db, 'classes', classId), newClassroom);
+  } catch (err) {
+    console.warn('Firestore setDoc for classroom note:', err);
+  }
+
+  return newClassroom;
+};
+
+// Student One-Click Join Class via joinCode
+export const joinClassByCode = async (
+  joinCode: string,
+  studentUid: string,
+  studentName?: string
+): Promise<{ success: boolean; classroom?: VirtualClassroom; message: string }> => {
+  const cleanCode = joinCode.trim().toUpperCase();
+  if (!cleanCode) {
+    return { success: false, message: 'Please enter a valid Class Join Code.' };
+  }
+
+  const allClassrooms = await fetchVirtualClassrooms();
+  const matched = allClassrooms.find(c => c.joinCode.toUpperCase() === cleanCode || c.classId === joinCode);
+
+  if (!matched) {
+    return { success: false, message: `No classroom found with Join Code "${cleanCode}". Please check with your teacher.` };
+  }
+
+  const classId = matched.classId;
+
+  // Check if student is already enrolled
+  if (matched.studentIds.includes(studentUid)) {
+    // Update student local user profile classId
+    const localUser = localStorage.getItem('stemio_custom_user');
+    if (localUser) {
+      try {
+        const u = JSON.parse(localUser);
+        u.classId = classId;
+        localStorage.setItem('stemio_custom_user', JSON.stringify(u));
+      } catch (e) {}
+    }
+    const guestUser = localStorage.getItem('stemio_guest_user');
+    if (guestUser) {
+      try {
+        const g = JSON.parse(guestUser);
+        g.classId = classId;
+        localStorage.setItem('stemio_guest_user', JSON.stringify(g));
+        window.dispatchEvent(new CustomEvent('guest-user-updated', { detail: g }));
+      } catch (e) {}
+    }
+
+    return { 
+      success: true, 
+      classroom: matched, 
+      message: `You are already enrolled in "${matched.name}".` 
+    };
+  }
+
+  // 1. Update local classrooms state
+  const updatedStudentIds = [...matched.studentIds, studentUid];
+  const updatedClassroom = { ...matched, studentIds: updatedStudentIds };
+  const updatedClassrooms = allClassrooms.map(c => c.classId === classId ? updatedClassroom : c);
+  localStorage.setItem('stemio_virtual_classrooms', JSON.stringify(updatedClassrooms));
+
+  // Update student profile classId in local storage
+  const localUser = localStorage.getItem('stemio_custom_user');
+  if (localUser) {
+    try {
+      const u = JSON.parse(localUser);
+      u.classId = classId;
+      localStorage.setItem('stemio_custom_user', JSON.stringify(u));
+    } catch (e) {}
+  }
+  const guestUser = localStorage.getItem('stemio_guest_user');
+  if (guestUser) {
+    try {
+      const g = JSON.parse(guestUser);
+      g.classId = classId;
+      localStorage.setItem('stemio_guest_user', JSON.stringify(g));
+      window.dispatchEvent(new CustomEvent('guest-user-updated', { detail: g }));
+    } catch (e) {}
+  }
+
+  // 2. Persist in Firestore using arrayUnion on classes/{classId} and updating user profile
+  try {
+    const classRef = doc(db, 'classes', classId);
+    await updateDoc(classRef, {
+      studentIds: arrayUnion(studentUid)
+    });
+
+    if (studentUid && !studentUid.startsWith('guest_')) {
+      const userRef = doc(db, 'users', studentUid);
+      await updateDoc(userRef, {
+        classId: classId
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore joinClassByCode update note:', err);
+  }
+
+  return {
+    success: true,
+    classroom: updatedClassroom,
+    message: `Successfully joined classroom "${matched.name}"!`
+  };
+};
+
+// Remove a student from a virtual classroom
+export const removeClassStudent = async (classId: string, studentUid: string): Promise<boolean> => {
+  // Update local state
+  const allClassrooms = await fetchVirtualClassrooms();
+  const matched = allClassrooms.find(c => c.classId === classId);
+  if (matched) {
+    const updatedStudentIds = matched.studentIds.filter(id => id !== studentUid);
+    const updatedClassrooms = allClassrooms.map(c => c.classId === classId ? { ...c, studentIds: updatedStudentIds } : c);
+    localStorage.setItem('stemio_virtual_classrooms', JSON.stringify(updatedClassrooms));
+  }
+
+  // Update Firestore
+  try {
+    const classRef = doc(db, 'classes', classId);
+    await updateDoc(classRef, {
+      studentIds: arrayRemove(studentUid)
+    });
+
+    if (!studentUid.startsWith('guest_')) {
+      const userRef = doc(db, 'users', studentUid);
+      await updateDoc(userRef, {
+        classId: ''
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn('Firestore removeClassStudent note:', err);
+    return false;
+  }
+};
+
+// Delete a virtual classroom
+export const deleteVirtualClassroom = async (classId: string): Promise<boolean> => {
+  const currentList = await fetchVirtualClassrooms();
+  const updatedList = currentList.filter(c => c.classId !== classId);
+  localStorage.setItem('stemio_virtual_classrooms', JSON.stringify(updatedList));
+
+  try {
+    await deleteDoc(doc(db, 'classes', classId));
+    return true;
+  } catch (err) {
+    console.warn('Firestore deleteVirtualClassroom note:', err);
+    return false;
+  }
+};
+
+
 

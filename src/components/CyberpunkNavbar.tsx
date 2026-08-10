@@ -4,8 +4,9 @@ import AvatarRenderer, { AvatarConfig, DEFAULT_AVATAR_CONFIG } from './AvatarRen
 import { 
   Shield, ChevronDown, User as UserIcon, LogOut, Settings, Flame, 
   Sun, Moon, Zap, Bell, Coins, Palette, Sparkles, Check, X, Menu,
-  ExternalLink, Lightbulb, Shirt, Smile, CheckCircle2, BookOpen, Layers, Trophy
+  ExternalLink, Lightbulb, Shirt, Smile, CheckCircle2, BookOpen, Layers, Trophy, GraduationCap
 } from 'lucide-react';
+import JoinClassModal from './JoinClassModal';
 
 interface NavbarProps {
   user: User;
@@ -34,6 +35,7 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showJoinClassModal, setShowJoinClassModal] = useState(false);
 
   const [avatarConfig, setAvatarConfig] = useState<any>(() => {
     const saved = localStorage.getItem('stemio_avatar_config');
@@ -150,6 +152,16 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
             >
               Resources
             </button>
+
+            {!user.isAdmin && user.role !== 'teacher' && (
+              <button 
+                onClick={() => setShowJoinClassModal(true)} 
+                className="px-2.5 py-1 bg-[var(--amber)]/10 border border-[var(--amber)]/30 text-[var(--amber)] hover:bg-[var(--amber)]/20 rounded-md font-bold flex items-center gap-1.5 transition-all text-[10px] tracking-wider uppercase cursor-pointer"
+                title="Join Virtual Classroom via Code"
+              >
+                <GraduationCap size={13} /> Join Class
+              </button>
+            )}
             {user.role === 'teacher' && (
               <button
                 onClick={() => onNavigate && onNavigate('classroom')}
@@ -303,6 +315,21 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
                 </div>
 
                 <div className="py-1 border-b border-[var(--line-2)]">
+                  {!user.isAdmin && user.role !== 'teacher' && (
+                    <button 
+                      onClick={() => {
+                        setShowJoinClassModal(true);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs text-[var(--ink)] hover:bg-[var(--surface)] flex items-center justify-between transition-colors font-semibold group cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <GraduationCap size={15} className="text-[var(--amber)] group-hover:scale-110 transition-transform" /> 
+                        <span>Join Classroom</span>
+                      </span>
+                      <span className="text-[9px] font-mono bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase">Code</span>
+                    </button>
+                  )}
                   <button 
                     onClick={() => {
                       if (onNavigate) onNavigate('avatar');
@@ -335,10 +362,13 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
 
                 <div className="py-1">
                   <button 
-                    className="w-full text-left px-3.5 py-2.5 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
-                    onClick={onLogout}
+                    className="w-full text-left px-3.5 py-2.5 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors cursor-pointer font-bold"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      if (onLogout) onLogout();
+                    }}
                   >
-                    <LogOut size={15} className="opacity-80" /> Disconnect
+                    <LogOut size={15} className="opacity-80" /> Log Out
                   </button>
                 </div>
               </div>
@@ -436,6 +466,18 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
               {activeView === 'lesson-builder' && <CheckCircle2 size={14} className="text-[#06B6D4]" />}
             </button>
           )}
+
+          <div className="pt-2 border-t border-[var(--line)] mt-2">
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                if (onLogout) onLogout();
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-lg font-bold flex items-center gap-2 text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            >
+              <LogOut size={16} /> Log Out
+            </button>
+          </div>
         </div>
       )}
 
@@ -567,6 +609,17 @@ export default function CyberpunkNavbar({ user, lightMode, setLightMode, onLogou
             </div>
           </div>
         </div>
+      )}
+
+      {/* JOIN CLASSROOM MODAL */}
+      {showJoinClassModal && (
+        <JoinClassModal 
+          user={user}
+          onClose={() => setShowJoinClassModal(false)}
+          onSuccess={() => {
+            if (onNavigate) onNavigate('arcade');
+          }}
+        />
       )}
     </>
   );

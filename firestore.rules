@@ -28,6 +28,11 @@ service cloud.firestore {
       allow read, write: if true; // Open for prototyping
     }
 
+    // Classroom Rules
+    match /classes/{classId} {
+      allow read, write: if true; // Open for prototyping
+    }
+
     // Activity Rules
     match /activities/{activityId} {
       allow read, write: if true; // Open for prototyping

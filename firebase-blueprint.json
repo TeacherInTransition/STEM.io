@@ -10,9 +10,25 @@
         "role": { "type": "string", "enum": ["student", "teacher"] },
         "isAdmin": { "type": "boolean" },
         "stemios": { "type": "number" },
-        "streak": { "type": "number" }
+        "streak": { "type": "number" },
+        "classId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]*$" }
       },
       "required": ["name", "email", "role", "isAdmin", "stemios", "streak"]
+    },
+    "VirtualClassroom": {
+      "title": "VirtualClassroom",
+      "description": "Virtual classroom grouping and roster.",
+      "type": "object",
+      "properties": {
+        "classId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 100 },
+        "googleClassroomCourseId": { "type": "string", "maxLength": 100 },
+        "joinCode": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentIds": { "type": "array" },
+        "teacherId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["classId", "name", "joinCode", "studentIds", "createdAt"]
     },
     "Activity": {
       "title": "Activity",
@@ -55,6 +71,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile collection."
+    },
+    "/classes/{classId}": {
+      "schema": "VirtualClassroom",
+      "description": "Classrooms collection."
     },
     "/activities/{activityId}": {
       "schema": "Activity",
