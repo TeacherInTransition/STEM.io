@@ -110,7 +110,13 @@ export function useUser(firebaseUser: FirebaseUser | null) {
           }
         }
       } catch (err) {
-        console.error('Error syncing user:', err);
+        console.warn('Error syncing user (using local cached user):', err);
+        const stored = localStorage.getItem('stemio_custom_user');
+        if (stored && active) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch (e) {}
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -119,50 +125,63 @@ export function useUser(firebaseUser: FirebaseUser | null) {
     syncUser();
 
     // Listen for real-time updates (e.g. from activities)
-    const unsubscribe = onSnapshot(userRef, async (snap) => {
-      if (!active) return;
-      if (!firebaseUser && !localStorage.getItem('stemio_custom_user')) {
-        setUser(null);
-        return;
-      }
-
-      if (snap.exists()) {
-        const userData = snap.data();
-        if (userData.email === 'laankanom2018@gmail.com' && !userData.isAdmin) {
-          userData.isAdmin = true;
-          userData.role = 'teacher';
-          setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true });
-        }
-
-        let completedQuizzes: string[] = [];
-        try {
-          const completionsCol = collection(db, 'users', customUid!, 'completions');
-          const completionsSnap = await getDocs(completionsCol);
-          completedQuizzes = completionsSnap.docs.map(d => d.id);
-        } catch (e) {
-          console.warn('Error fetching completions on snapshot:', e);
-        }
-
+    const unsubscribe = onSnapshot(
+      userRef,
+      async (snap) => {
         if (!active) return;
-
-        const fullUser: User = {
-          id: userData.id || customUid!,
-          name: userData.name || '',
-          email: userData.email || '',
-          role: (userData.role as Role) || 'student',
-          isAdmin: !!userData.isAdmin,
-          stemios: userData.stemios ?? 100,
-          streak: userData.streak ?? 0,
-          completedQuizzes
-        };
-
-        if (active && (firebaseUser || localStorage.getItem('stemio_custom_user'))) {
-          setUser(fullUser);
-          localStorage.setItem('stemio_custom_user', JSON.stringify(fullUser));
+        if (!firebaseUser && !localStorage.getItem('stemio_custom_user')) {
+          setUser(null);
+          return;
         }
+
+        if (snap.exists()) {
+          const userData = snap.data();
+          if (userData.email === 'laankanom2018@gmail.com' && !userData.isAdmin) {
+            userData.isAdmin = true;
+            userData.role = 'teacher';
+            setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true }).catch(() => {});
+          }
+
+          let completedQuizzes: string[] = [];
+          try {
+            const completionsCol = collection(db, 'users', customUid!, 'completions');
+            const completionsSnap = await getDocs(completionsCol);
+            completedQuizzes = completionsSnap.docs.map(d => d.id);
+          } catch (e) {
+            console.warn('Error fetching completions on snapshot:', e);
+          }
+
+          if (!active) return;
+
+          const fullUser: User = {
+            id: userData.id || customUid!,
+            name: userData.name || '',
+            email: userData.email || '',
+            role: (userData.role as Role) || 'student',
+            isAdmin: !!userData.isAdmin,
+            stemios: userData.stemios ?? 100,
+            streak: userData.streak ?? 0,
+            completedQuizzes
+          };
+
+          if (active && (firebaseUser || localStorage.getItem('stemio_custom_user'))) {
+            setUser(fullUser);
+            localStorage.setItem('stemio_custom_user', JSON.stringify(fullUser));
+          }
+        }
+        if (active) setLoading(false);
+      },
+      (error) => {
+        console.warn('onSnapshot userRef warning (quota or network error):', error);
+        const stored = localStorage.getItem('stemio_custom_user');
+        if (stored && active) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch (e) {}
+        }
+        if (active) setLoading(false);
       }
-      if (active) setLoading(false);
-    });
+    );
 
     const handleCustomUserUpdate = (e: any) => {
       if (!e.detail) {

@@ -3,18 +3,19 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.js?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   GraduationCap, Coins, Flame, Wand2, CircleCheck, Play, 
   CloudDownload, Sliders, PlusCircle, Copy, HelpCircle, 
-  ArrowLeft, ArrowRight, CloudUpload, Trash2, CheckCircle2, Lightbulb,
+  ArrowLeft, ArrowRight, CloudUpload, Trash2, CheckCircle2, Lightbulb, Sparkles,
   FileText, ExternalLink, Download, Folder, FolderOpen, ChevronRight,
-  Search, X, Plus, BookOpen, Video, FileSpreadsheet, FileCode, Globe
+  Search, X, Plus, BookOpen, Video, FileSpreadsheet, FileCode, Globe,
+  PanelLeft, Maximize2, Minimize2, Columns, Layout
 } from 'lucide-react';
 import { User } from '../types';
 import { db, awardStemios, fetchResourcesFromDb, saveResourcesToDb } from '../lib/firebase';
 import { collection, doc, setDoc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
-import { UNIT_1_MASTER_PLAN } from '../data/unitMasterPlans';
+import { UNIT_1_MASTER_PLAN, UPDATED_PROBLEM_SOLVING_AI_QUIZ } from '../data/unitMasterPlans';
 
 const isDocumentUrl = (url: string | undefined | null): boolean => {
   if (!url) return false;
@@ -379,31 +380,10 @@ function buildMasterLessonCatalog() {
           imageUrl: ""
         }
       ],
-      quiz: [
-        {
-          question: `What primary concept is covered in Lesson ${m.lessonNumber} (${m.title})?`,
-          options: [
-            m.concepts.split(',')[0] || m.concepts,
-            "Manual binary drive formatting",
-            "Analog radio signal soldering",
-            "Static tape backup indexing"
-          ],
-          correctIndex: 0,
-          hint: `Focus on the core concept: ${m.concepts}`
-        },
-        {
-          question: "How should human auditing be applied in this lesson?",
-          options: [
-            "By evaluating outputs for accuracy, bias, and applying human-in-the-loop verification.",
-            "By blindly trusting computer outputs without verification.",
-            "By skipping exit reflection prompts and practical sandboxes.",
-            "By turning off safety checks completely."
-          ],
-          correctIndex: 0,
-          hint: "Always practice active human-in-the-loop evaluation."
-        }
-      ]
+      quiz: m.quiz || UPDATED_PROBLEM_SOLVING_AI_QUIZ
     };
+    // Map alternative ID alias (e.g. 'l1') to the same catalog entry
+    catalog[`l${m.lessonNumber}`] = catalog[m.id];
   });
   return catalog;
 }
@@ -414,32 +394,37 @@ interface LessonBuilderProps {
 }
 
 export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
-  const [activeLessonId, setActiveLessonId] = useState('l1');
+  const [activeLessonId, setActiveLessonId] = useState('u1_l1');
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [lessonCatalog, setLessonCatalog] = useState<any>(buildMasterLessonCatalog());
 
   useEffect(() => {
-    const q = query(collection(db, 'lessons'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLessonCatalog((prev: any) => {
-        const updated = { ...prev };
-        snapshot.docs.forEach((docSnap) => {
-          const data = docSnap.data();
-          if (data.lessonTitle) {
-            updated[docSnap.id] = {
-              ...updated[docSnap.id],
-              ...data,
-              id: docSnap.id
-            };
-          }
+    let unsubscribe = () => {};
+    try {
+      const q = query(collection(db, 'lessons'));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        setLessonCatalog((prev: any) => {
+          const updated = { ...prev };
+          snapshot.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.lessonTitle) {
+              updated[docSnap.id] = {
+                ...updated[docSnap.id],
+                ...data,
+                id: docSnap.id
+              };
+            }
+          });
+          return updated;
         });
-        return updated;
+      }, (error) => {
+        console.warn("Notice subscribing to published lessons in LessonBuilder (using master catalog):", error?.message || error);
       });
-    }, (error) => {
-      console.error("Error subscribing to published lessons in LessonBuilder:", error);
-    });
+    } catch (e: any) {
+      console.warn("Could not subscribe to lessons in LessonBuilder:", e?.message || e);
+    }
     return () => unsubscribe();
   }, []);
 
@@ -449,6 +434,81 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   const [selectedQuizAnswers, setSelectedQuizAnswers] = useState<Record<number, number>>({});
   const [showPreviewHints, setShowPreviewHints] = useState<Record<number, boolean>>({});
   const [viewMode, setViewMode] = useState<'admin' | 'preview'>('admin');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [builderTab, setBuilderTab] = useState<'split' | 'slide' | 'panel'>('split');
+  
+  // Resizable Right Panel State & Mouse Press Drag Scroll
+  const [rightPanelWidth, setRightPanelWidth] = useState(520);
+  const [isDraggingPanel, setIsDraggingPanel] = useState(false);
+
+  const designPanelRef = useRef<HTMLDivElement>(null);
+  const [isMouseDownScroll, setIsMouseDownScroll] = useState(false);
+  const [mouseScrollStartY, setMouseScrollStartY] = useState(0);
+  const [mouseScrollTopStart, setMouseScrollTopStart] = useState(0);
+
+  const handlePanelMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Avoid hijacking drag scroll if user clicks inside inputs, textareas, selects, buttons, or links
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, select, button, a, [data-no-drag]')) {
+      return;
+    }
+
+    if (!designPanelRef.current) return;
+    setIsMouseDownScroll(true);
+    setMouseScrollStartY(e.clientY);
+    setMouseScrollTopStart(designPanelRef.current.scrollTop);
+  };
+
+  useEffect(() => {
+    if (!isMouseDownScroll) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!designPanelRef.current) return;
+      const deltaY = e.clientY - mouseScrollStartY;
+      designPanelRef.current.scrollTop = mouseScrollTopStart - deltaY;
+    };
+
+    const handleMouseUp = () => {
+      setIsMouseDownScroll(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isMouseDownScroll, mouseScrollStartY, mouseScrollTopStart]);
+
+  const scrollPanelBy = (amount: number) => {
+    if (!designPanelRef.current) return;
+    designPanelRef.current.scrollBy({ top: amount, behavior: 'smooth' });
+  };
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingPanel(true);
+  };
+
+  useEffect(() => {
+    if (!isDraggingPanel) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(320, Math.min(1100, window.innerWidth - e.clientX));
+      setRightPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingPanel(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingPanel]);
   
   // Materials state for creating slide materials
   const [matTitle, setMatTitle] = useState('');
@@ -686,13 +746,16 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
         updated[activeLessonId] = { lessonTitle: '', slides: [], quiz: [], media: {} };
       }
       const currentQuiz = updated[activeLessonId].quiz || [];
+      const newQuestionNum = currentQuiz.length + 1;
       updated[activeLessonId].quiz = [
         ...currentQuiz,
         {
-          question: `Question ${currentQuiz.length + 1}`,
-          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          question: `Question ${newQuestionNum}: Enter question text...`,
+          options: ['A. First choice', 'B. Second choice', 'C. Third choice', 'D. Fourth choice'],
           correctIndex: 0,
-          hint: ''
+          correctAnswer: 0,
+          hint: '',
+          explanation: ''
         }
       ];
       return updated;
@@ -725,6 +788,21 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
     });
   };
 
+  const moveQuizQuestion = (qIdx: number, direction: 'up' | 'down') => {
+    setLessonCatalog((prev: any) => {
+      const updated = { ...prev };
+      if (!updated[activeLessonId]) return prev;
+      const currentQuiz = [...(updated[activeLessonId].quiz || [])];
+      const targetIdx = direction === 'up' ? qIdx - 1 : qIdx + 1;
+      if (targetIdx < 0 || targetIdx >= currentQuiz.length) return prev;
+      const temp = currentQuiz[qIdx];
+      currentQuiz[qIdx] = currentQuiz[targetIdx];
+      currentQuiz[targetIdx] = temp;
+      updated[activeLessonId].quiz = currentQuiz;
+      return updated;
+    });
+  };
+
   const updateQuizQuestion = (qIdx: number, field: string, value: any, optIdx?: number) => {
     setLessonCatalog((prev: any) => {
       const updated = { ...prev };
@@ -732,18 +810,41 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
       const currentQuiz = [...(updated[activeLessonId].quiz || [])];
       if (!currentQuiz[qIdx]) return updated;
 
+      const q = { ...currentQuiz[qIdx] };
+
       if (field === 'question') {
-        currentQuiz[qIdx] = { ...currentQuiz[qIdx], question: value };
+        q.question = value;
       } else if (field === 'hint') {
-        currentQuiz[qIdx] = { ...currentQuiz[qIdx], hint: value };
+        q.hint = value;
+      } else if (field === 'explanation') {
+        q.explanation = value;
       } else if (field === 'correctIndex') {
-        currentQuiz[qIdx] = { ...currentQuiz[qIdx], correctIndex: parseInt(value, 10) };
+        const idxVal = parseInt(value, 10);
+        q.correctIndex = idxVal;
+        q.correctAnswer = idxVal;
       } else if (field === 'option' && optIdx !== undefined) {
-        const newOpts = [...(currentQuiz[qIdx].options || ['', '', '', ''])];
+        const newOpts = [...(q.options || [])];
         newOpts[optIdx] = value;
-        currentQuiz[qIdx] = { ...currentQuiz[qIdx], options: newOpts };
+        q.options = newOpts;
+      } else if (field === 'addOption') {
+        const newOpts = [...(q.options || [])];
+        const letter = String.fromCharCode(65 + newOpts.length);
+        newOpts.push(`${letter}. New Option Choice`);
+        q.options = newOpts;
+      } else if (field === 'deleteOption' && optIdx !== undefined) {
+        const newOpts = [...(q.options || [])];
+        if (newOpts.length > 2) {
+          newOpts.splice(optIdx, 1);
+          q.options = newOpts;
+          const currentCorr = q.correctIndex ?? q.correctAnswer ?? 0;
+          if (currentCorr >= newOpts.length) {
+            q.correctIndex = newOpts.length - 1;
+            q.correctAnswer = newOpts.length - 1;
+          }
+        }
       }
 
+      currentQuiz[qIdx] = q;
       updated[activeLessonId].quiz = currentQuiz;
       return updated;
     });
@@ -862,7 +963,8 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
 
       let correctCount = 0;
       quizList.forEach((q: any, idx: number) => {
-          if (selectedQuizAnswers[idx] === q.correctIndex) {
+          const targetIndex = q.correctIndex ?? q.correctAnswer;
+          if (selectedQuizAnswers[idx] === targetIndex) {
               correctCount++;
           }
       });
@@ -940,37 +1042,85 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
   return (
     <div className="flex-1 bg-[var(--paper)] text-[var(--ink)] flex flex-col overflow-hidden">
         {/* HUD Navigation */}
-        <header className="h-16 bg-[var(--surface)] border-b border-[var(--line)] flex justify-between items-center px-6 sticky top-0 z-50 backdrop-blur-md">
-            <div className="flex items-center gap-3">
+        <header className="h-16 bg-[var(--surface)] border-b border-[var(--line)] flex justify-between items-center px-4 sm:px-6 sticky top-0 z-50 backdrop-blur-md gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5">
                 {onBack && (
                     <button 
                         onClick={onBack}
-                        className="mr-2 p-2 bg-[var(--paper-2)] hover:bg-[var(--line)] rounded-lg text-[var(--ink)] transition-colors"
+                        className="p-2 bg-[var(--paper-2)] hover:bg-[var(--line)] rounded-lg text-[var(--ink)] transition-colors cursor-pointer"
                         title="Exit Builder"
                     >
-                        <ArrowLeft size={20} />
+                        <ArrowLeft size={18} />
                     </button>
                 )}
-                <div className="p-2 bg-gradient-to-tr from-[#6366F1] to-[#06B6D4] rounded-lg text-white">
-                    <GraduationCap size={20} />
+                <button 
+                    type="button"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-2 bg-[var(--paper-2)] hover:bg-[var(--line)] text-[var(--ink)] rounded-lg transition border border-[var(--line)] flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                    title={isSidebarOpen ? "Hide Lessons Sidebar" : "Show Lessons Sidebar"}
+                >
+                    <PanelLeft size={18} className="text-[#06B6D4]" />
+                    <span className="hidden sm:inline">{isSidebarOpen ? "Sidebar" : "Sidebar"}</span>
+                </button>
+                <div className="p-2 bg-gradient-to-tr from-[#6366F1] to-[#06B6D4] rounded-lg text-white hidden md:block">
+                    <GraduationCap size={18} />
                 </div>
                 <div>
-                    <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#06B6D4]">Stemio Creator Studio</span>
-                    <span className="text-xs text-[var(--muted)] block -mt-1">Interactive Lesson Builder & Presenter</span>
+                    <span className="text-sm sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#6366F1] to-[#06B6D4]">Stemio Creator Studio</span>
+                    <span className="text-[10px] sm:text-xs text-[var(--muted)] block -mt-1 hidden sm:block">Interactive Lesson Builder & Presenter</span>
                 </div>
             </div>
             
-            <div className="flex items-center gap-4">
-                <button onClick={() => setViewMode(viewMode === 'admin' ? 'preview' : 'admin')} className="px-4 py-1.5 bg-[var(--paper-2)] hover:bg-[var(--surface)] text-xs font-semibold rounded-full border border-[var(--line)] text-[var(--ink)] flex items-center gap-2 transition cursor-pointer">
+            <div className="flex items-center gap-2">
+                {/* Admin Workspace View Tabs for non-fullscreen and small screens */}
+                {viewMode === 'admin' && (
+                    <div className="flex items-center gap-1 bg-gray-900/90 border border-[#1f2937] p-1 rounded-lg">
+                        <button
+                            type="button"
+                            onClick={() => setBuilderTab('split')}
+                            className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                builderTab === 'split' ? 'bg-[#6366F1] text-white shadow-xs' : 'text-gray-400 hover:text-white'
+                            }`}
+                            title="Split View (Side-by-Side Slide Canvas + Design Panel)"
+                        >
+                            <Columns size={13} />
+                            <span className="hidden md:inline">Split View</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setBuilderTab('slide')}
+                            className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                builderTab === 'slide' ? 'bg-[#6366F1] text-white shadow-xs' : 'text-gray-400 hover:text-white'
+                            }`}
+                            title="Focus on Slide Canvas"
+                        >
+                            <Layout size={13} />
+                            <span className="hidden md:inline">Slide Canvas</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setBuilderTab('panel')}
+                            className={`px-2.5 py-1 rounded text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                                builderTab === 'panel' ? 'bg-[#6366F1] text-white shadow-xs' : 'text-gray-400 hover:text-white'
+                            }`}
+                            title="Focus on Design Panel (Full Width)"
+                        >
+                            <Sliders size={13} />
+                            <span className="hidden md:inline">Design Panel</span>
+                        </button>
+                    </div>
+                )}
+
+                <button onClick={() => setViewMode(viewMode === 'admin' ? 'preview' : 'admin')} className="px-3.5 py-1.5 bg-[var(--paper-2)] hover:bg-[var(--surface)] text-xs font-bold rounded-full border border-[var(--line)] text-[var(--ink)] flex items-center gap-1.5 transition cursor-pointer">
                     <Wand2 size={14} className="text-[#06B6D4]" />
-                    <span>Toggle Admin / Preview</span>
+                    <span className="hidden xs:inline">{viewMode === 'admin' ? 'Preview' : 'Admin'}</span>
                 </button>
             </div>
         </header>
 
         <div className="flex-grow flex h-[calc(100vh-4rem)] overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-[320px] border-r border-[var(--line)] bg-[var(--paper-2)] flex flex-col justify-between p-4 overflow-y-auto">
+            <aside className={`${isSidebarOpen ? 'w-[320px] min-w-[280px] p-4 border-r' : 'w-0 p-0 overflow-hidden border-r-0'} border-[var(--line)] bg-[var(--paper-2)] flex flex-col justify-between overflow-y-auto transition-all duration-300 shrink-0`}>
                 <div className="space-y-6">
                     <div className="bg-[var(--surface)] border border-[var(--line)] rounded-xl p-4 text-center relative overflow-hidden">
                         <span className="text-[10px] text-[#6366F1] tracking-widest font-bold uppercase block mb-1">AI Course Unit 1</span>
@@ -1038,8 +1188,9 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
             </aside>
 
             {/* Main Stage */}
-            <main className="flex-grow flex flex-col lg:flex-row overflow-hidden bg-gray-950/40">
-                <div className="flex-grow flex flex-col p-6 overflow-y-auto space-y-6">
+            <main className="flex-grow flex flex-col lg:flex-row overflow-x-auto overflow-y-auto bg-gray-950/40 w-full min-w-0">
+                {(builderTab === 'split' || builderTab === 'slide') && (
+                    <div className={`flex-grow flex flex-col p-4 sm:p-6 overflow-y-auto space-y-6 ${builderTab === 'slide' ? 'w-full' : 'min-w-[320px]'}`}>
                     {/* Presentation File Loader */}
                     <div className="bg-white text-gray-950 border border-gray-200 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-center gap-4 shadow-sm shrink-0">
                         <div className="flex items-center gap-3">
@@ -1347,29 +1498,47 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
 
                         <div className="flex justify-between items-center border-t border-gray-100 p-6 bg-gray-50 shrink-0">
                             <button 
+                                type="button"
                                 onClick={() => setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))}
                                 disabled={currentSlideIndex === 0}
-                                className="px-6 py-2.5 bg-[#00AD7C] hover:bg-[#00AD7C]/90 text-white font-bold rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+                                className="px-6 py-2.5 bg-[#00AD7C] hover:bg-[#00AD7C]/90 text-white font-bold rounded-lg flex items-center gap-2 transition disabled:opacity-50 cursor-pointer"
                             >
                                 <ArrowLeft size={16} /> Previous
                             </button>
                             <div className="flex gap-1.5">
                                 {(activeLesson?.slides || []).map((_: any, idx: number) => (
-                                    <div key={idx} className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentSlideIndex ? 'bg-[#6366F1] w-5' : 'bg-gray-200'}`}></div>
+                                    <button
+                                        type="button"
+                                        key={idx}
+                                        onClick={() => setCurrentSlideIndex(idx)}
+                                        className={`h-2 rounded-full transition-all cursor-pointer ${idx === currentSlideIndex ? 'bg-[#6366F1] w-6' : 'bg-gray-300 hover:bg-gray-400 w-2'}`}
+                                        title={`Jump to slide ${idx + 1}`}
+                                    />
                                 ))}
                             </div>
                             <button 
-                                onClick={() => setCurrentSlideIndex(Math.min((activeLesson?.slides?.length || 1) - 1, currentSlideIndex + 1))}
-                                disabled={currentSlideIndex === (activeLesson?.slides?.length || 1) - 1}
-                                className="px-6 py-2.5 bg-[#00AD7C] hover:bg-[#00AD7C]/90 text-white font-bold rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+                                type="button"
+                                onClick={() => {
+                                    const totalSlides = activeLesson?.slides?.length || 1;
+                                    if (currentSlideIndex < totalSlides - 1) {
+                                        setCurrentSlideIndex(currentSlideIndex + 1);
+                                    } else {
+                                        const quizSec = document.getElementById('builder-quiz-preview-section');
+                                        if (quizSec) {
+                                            quizSec.scrollIntoView({ behavior: 'smooth' });
+                                        }
+                                    }
+                                }}
+                                className="px-6 py-2.5 bg-[#00AD7C] hover:bg-[#00AD7C]/90 text-white font-bold rounded-lg flex items-center gap-2 transition cursor-pointer shadow-xs"
                             >
-                                Next <ArrowRight size={16} />
+                                <span>{currentSlideIndex < (activeLesson?.slides?.length || 1) - 1 ? "Next Slide" : "Next: Checkpoint Quiz ↓"}</span>
+                                <ArrowRight size={16} />
                             </button>
                         </div>
                     </div>
                     )}
 
-                    <div className="bg-[#111827] border border-[#1f2937] rounded-2xl p-6">
+                    <div id="builder-quiz-preview-section" className="bg-[#111827] border border-[#1f2937] rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <span className="p-1.5 bg-[#6366F1]/20 text-[#6366F1] rounded-lg text-sm">
@@ -1445,18 +1614,101 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                         )}
                     </div>
                 </div>
+            )}
 
-                {/* Right Workspace: Config Editor */}
-                {viewMode === 'admin' && (
-                    <div className="w-full lg:w-[500px] border-l border-[#1f2937] bg-gray-950/80 p-6 flex flex-col justify-between overflow-y-auto space-y-6">
+                {/* Right Workspace: Config Editor / Design Panel */}
+                {viewMode === 'admin' && (builderTab === 'split' || builderTab === 'panel') && (
+                    <div 
+                        ref={designPanelRef}
+                        onMouseDown={handlePanelMouseDown}
+                        style={{ width: builderTab === 'panel' ? '100%' : `${rightPanelWidth}px` }}
+                        className={`relative w-full border-l border-[#1f2937] bg-gray-950/80 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto space-y-6 shrink-0 resize-x min-w-[300px] max-w-full transition-all duration-75 select-text ${
+                            isMouseDownScroll ? 'cursor-grabbing select-none' : ''
+                        }`}
+                    >
+                        {/* Drag Resize Handle on Left Edge */}
+                        {builderTab === 'split' && (
+                            <div 
+                                onMouseDown={handleMouseDownResize}
+                                className={`hidden lg:flex absolute left-0 top-0 bottom-0 w-2.5 hover:w-3.5 bg-transparent hover:bg-[#06B6D4]/40 cursor-col-resize z-30 group transition-all items-center justify-center ${
+                                    isDraggingPanel ? 'bg-[#06B6D4]/50 w-3.5' : ''
+                                }`}
+                                title="Click and drag horizontally to resize or stretch this container"
+                            >
+                                <div className="w-1 h-12 bg-gray-700/80 group-hover:bg-[#06B6D4] rounded-full transition-colors shadow-xs"></div>
+                            </div>
+                        )}
+
+                        {/* Floating Quick Scroll Controls on Right Side */}
+                        <div className="sticky top-0 z-20 flex justify-end gap-1.5 -mr-2 -mt-2 float-right pointer-events-auto">
+                            <button
+                                type="button"
+                                onClick={() => scrollPanelBy(-300)}
+                                className="p-2 bg-gray-900/90 hover:bg-[#06B6D4] text-gray-300 hover:text-white border border-[#1f2937] rounded-lg shadow-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="Scroll Up (or click & drag inside panel)"
+                            >
+                                ▲ <span className="hidden sm:inline text-[10px]">Scroll Up</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => scrollPanelBy(300)}
+                                className="p-2 bg-gray-900/90 hover:bg-[#06B6D4] text-gray-300 hover:text-white border border-[#1f2937] rounded-lg shadow-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                                title="Scroll Down (or click & drag inside panel)"
+                            >
+                                ▼ <span className="hidden sm:inline text-[10px]">Scroll Down</span>
+                            </button>
+                        </div>
+
                         <div className="space-y-6">
-                            <div className="flex justify-between items-center border-b border-[#1f2937] pb-4">
+                            <div className="flex justify-between items-center border-b border-[#1f2937] pb-4 gap-2 flex-wrap">
                                 <div>
                                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                         <Sliders size={18} className="text-[#6366F1]" />
                                         <span>Design Panel</span>
                                     </h3>
-                                    <span className="text-xs text-gray-400">Configure active lesson manifests</span>
+                                    <span className="text-xs text-gray-400">Configure active lesson manifests • Drag mouse to scroll</span>
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-900 border border-[#1f2937] p-1 rounded-lg">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setRightPanelWidth(360); setBuilderTab('split'); }}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition cursor-pointer ${
+                                            rightPanelWidth <= 400 && builderTab === 'split' ? 'bg-[#6366F1] text-white' : 'text-gray-400 hover:text-white'
+                                        }`}
+                                        title="Compact Width (360px)"
+                                    >
+                                        360px
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setRightPanelWidth(520); setBuilderTab('split'); }}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition cursor-pointer ${
+                                            rightPanelWidth > 400 && rightPanelWidth < 680 && builderTab === 'split' ? 'bg-[#6366F1] text-white' : 'text-gray-400 hover:text-white'
+                                        }`}
+                                        title="Standard Width (520px)"
+                                    >
+                                        520px
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setRightPanelWidth(800); setBuilderTab('split'); }}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition cursor-pointer ${
+                                            rightPanelWidth >= 680 && builderTab === 'split' ? 'bg-[#6366F1] text-white' : 'text-gray-400 hover:text-white'
+                                        }`}
+                                        title="Stretch Container Wide (800px)"
+                                    >
+                                        Stretch
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBuilderTab('panel')}
+                                        className={`px-2 py-0.5 text-[10px] font-bold rounded transition cursor-pointer ${
+                                            builderTab === 'panel' ? 'bg-[#06B6D4] text-white' : 'text-[#06B6D4] hover:bg-[#06B6D4]/20'
+                                        }`}
+                                        title="Focus 100% Full Width"
+                                    >
+                                        100% Full
+                                    </button>
                                 </div>
                             </div>
 
@@ -1757,118 +2009,178 @@ export default function LessonBuilder({ user, onBack }: LessonBuilderProps) {
                                         <button 
                                             type="button"
                                             onClick={addQuizQuestion} 
-                                            className="px-3 py-1.5 bg-[#06B6D4]/10 text-[#06B6D4] hover:bg-[#06B6D4]/20 rounded-lg text-xs font-bold transition inline-flex items-center gap-1"
+                                            className="px-3 py-1.5 bg-[#06B6D4]/10 text-[#06B6D4] hover:bg-[#06B6D4]/20 rounded-lg text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer"
                                         >
                                             <PlusCircle size={13} /> Add First Question
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
-                                        {(activeLesson?.quiz || []).map((q: any, qIdx: number) => (
-                                            <div key={qIdx} className="space-y-3 bg-[#111827] border border-[#1f2937] p-4 rounded-xl relative">
-                                                <div className="flex justify-between items-center pb-2 border-b border-[#1f2937]">
-                                                    <span className="text-xs font-bold text-[#06B6D4] uppercase">Question {qIdx + 1}</span>
-                                                    <div className="flex items-center gap-3">
-                                                        <button 
+                                    <div className="space-y-5">
+                                        {(activeLesson?.quiz || []).map((q: any, qIdx: number) => {
+                                            const currentCorrect = q.correctIndex ?? q.correctAnswer ?? 0;
+                                            return (
+                                                <div key={qIdx} className="space-y-3 bg-[#111827] border border-[#1f2937] p-4 rounded-xl relative">
+                                                    <div className="flex justify-between items-center pb-2 border-b border-[#1f2937]">
+                                                        <span className="text-xs font-black text-[#06B6D4] uppercase tracking-wider">
+                                                            Question {qIdx + 1} of {(activeLesson?.quiz || []).length}
+                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => moveQuizQuestion(qIdx, 'up')}
+                                                                disabled={qIdx === 0}
+                                                                className="p-1 text-xs text-gray-400 hover:text-white disabled:opacity-20 transition"
+                                                                title="Move Question Up"
+                                                            >
+                                                                ▲
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => moveQuizQuestion(qIdx, 'down')}
+                                                                disabled={qIdx === (activeLesson?.quiz?.length || 1) - 1}
+                                                                className="p-1 text-xs text-gray-400 hover:text-white disabled:opacity-20 transition"
+                                                                title="Move Question Down"
+                                                            >
+                                                                ▼
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => duplicateQuizQuestion(qIdx)}
+                                                                className="text-xs text-gray-400 hover:text-cyan-400 transition flex items-center gap-1 cursor-pointer ml-1"
+                                                                title="Duplicate Question"
+                                                            >
+                                                                <Copy size={13} /> Duplicate
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => deleteQuizQuestion(qIdx)}
+                                                                className="text-xs text-rose-400 hover:text-rose-300 transition flex items-center gap-1 cursor-pointer ml-1"
+                                                                title="Delete Question"
+                                                            >
+                                                                <Trash2 size={13} /> Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase">
+                                                            Question Text / Prompt
+                                                        </label>
+                                                        <textarea 
+                                                            rows={3}
+                                                            value={q.question || ''}
+                                                            onChange={(e) => updateQuizQuestion(qIdx, 'question', e.target.value)}
+                                                            placeholder="Enter question text or prompt..."
+                                                            className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#06B6D4] resize-y" 
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <label className="text-[11px] font-semibold text-gray-400 uppercase">Answer Choice Options</label>
+                                                            <span className="text-[10px] text-emerald-400 font-semibold">Click ✓ to pick correct choice</span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {(q.options || []).map((optTxt: string, optIdx: number) => {
+                                                                const isCorrect = currentCorrect === optIdx;
+                                                                return (
+                                                                    <div key={optIdx} className="flex items-start gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateQuizQuestion(qIdx, 'correctIndex', optIdx)}
+                                                                            className={`p-2 rounded-lg border text-xs font-bold transition flex items-center justify-center shrink-0 mt-0.5 cursor-pointer ${
+                                                                                isCorrect 
+                                                                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]' 
+                                                                                : 'bg-gray-900 border-[#1f2937] text-gray-500 hover:text-gray-300'
+                                                                            }`}
+                                                                            title={isCorrect ? "Correct Answer" : "Click to mark as Correct Answer"}
+                                                                        >
+                                                                            <CheckCircle2 size={15} />
+                                                                        </button>
+                                                                        <span className="text-xs font-bold text-gray-400 mt-2 shrink-0 w-4">
+                                                                            {String.fromCharCode(65 + optIdx)}.
+                                                                        </span>
+                                                                        <textarea
+                                                                            rows={2}
+                                                                            value={optTxt || ''}
+                                                                            onChange={(e) => updateQuizQuestion(qIdx, 'option', e.target.value, optIdx)}
+                                                                            placeholder={`Option ${String.fromCharCode(65 + optIdx)} text...`} 
+                                                                            className={`flex-1 bg-gray-900 border rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#06B6D4] ${
+                                                                                isCorrect ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-[#1f2937]'
+                                                                            }`} 
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateQuizQuestion(qIdx, 'deleteOption', null, optIdx)}
+                                                                            disabled={(q.options?.length || 0) <= 2}
+                                                                            className="text-gray-500 hover:text-rose-400 disabled:opacity-30 transition p-1.5 mt-1 cursor-pointer"
+                                                                            title="Remove Option"
+                                                                        >
+                                                                            <Trash2 size={13} />
+                                                                        </button>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <button
                                                             type="button"
-                                                            onClick={() => duplicateQuizQuestion(qIdx)}
-                                                            className="text-xs text-gray-400 hover:text-cyan-400 transition flex items-center gap-1"
-                                                            title="Duplicate Question"
+                                                            onClick={() => updateQuizQuestion(qIdx, 'addOption', null)}
+                                                            className="mt-2 text-xs text-[#06B6D4] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
                                                         >
-                                                            <Copy size={13} /> Duplicate
-                                                        </button>
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => deleteQuizQuestion(qIdx)}
-                                                            className="text-xs text-rose-400 hover:text-rose-300 transition flex items-center gap-1"
-                                                            title="Delete Question"
-                                                        >
-                                                            <Trash2 size={13} /> Remove
+                                                            <PlusCircle size={12} /> Add Answer Choice
                                                         </button>
                                                     </div>
-                                                </div>
 
-                                                <div>
-                                                    <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase">Question Text</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={q.question || ''}
-                                                        onChange={(e) => updateQuizQuestion(qIdx, 'question', e.target.value)}
-                                                        placeholder="Enter question text..."
-                                                        className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#06B6D4]" 
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase flex items-center gap-1">
-                                                        <Lightbulb size={12} className="text-amber-400" /> Question Hint (Optional)
-                                                    </label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={q.hint || ''}
-                                                        onChange={(e) => updateQuizQuestion(qIdx, 'hint', e.target.value)}
-                                                        placeholder="Enter optional hint for students (e.g. Think about 0-based indexing)..."
-                                                        className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#06B6D4]" 
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                        <label className="text-[11px] font-semibold text-gray-400 uppercase">Answer Options</label>
-                                                        <span className="text-[10px] text-amber-400">Click ✓ to pick correct option</span>
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase">
+                                                            Selected Correct Answer
+                                                        </label>
+                                                        <select 
+                                                            value={currentCorrect}
+                                                            onChange={(e) => updateQuizQuestion(qIdx, 'correctIndex', parseInt(e.target.value, 10))}
+                                                            className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#06B6D4] cursor-pointer"
+                                                        >
+                                                            {(q.options || []).map((optTxt: string, optIdx: number) => (
+                                                                <option key={optIdx} value={optIdx}>
+                                                                    Option {String.fromCharCode(65 + optIdx)}: {optTxt ? (optTxt.length > 50 ? optTxt.substring(0, 50) + '...' : optTxt) : 'Empty'}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     </div>
-                                                    <div className="space-y-2">
-                                                        {[0, 1, 2, 3].map(i => {
-                                                            const isCorrect = (q.correctIndex ?? 0) === i;
-                                                            return (
-                                                                <div key={i} className="flex items-center gap-2">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => updateQuizQuestion(qIdx, 'correctIndex', i)}
-                                                                        className={`p-1.5 rounded-lg border text-xs font-bold transition flex items-center justify-center shrink-0 ${
-                                                                            isCorrect 
-                                                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.3)]' 
-                                                                            : 'bg-gray-900 border-[#1f2937] text-gray-500 hover:text-gray-300'
-                                                                        }`}
-                                                                        title={isCorrect ? "Correct Answer" : "Click to mark as Correct Answer"}
-                                                                    >
-                                                                        <CheckCircle2 size={14} />
-                                                                    </button>
-                                                                    <input 
-                                                                        type="text" 
-                                                                        value={q.options?.[i] || ''}
-                                                                        onChange={(e) => updateQuizQuestion(qIdx, 'option', e.target.value, i)}
-                                                                        placeholder={`Option ${String.fromCharCode(65 + i)}`} 
-                                                                        className={`flex-1 bg-gray-900 border rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#06B6D4] ${
-                                                                            isCorrect ? 'border-emerald-500/60' : 'border-[#1f2937]'
-                                                                        }`} 
-                                                                    />
-                                                                </div>
-                                                            );
-                                                        })}
+
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                                            <Lightbulb size={12} className="text-amber-400" /> Question Hint (Optional)
+                                                        </label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={q.hint || ''}
+                                                            onChange={(e) => updateQuizQuestion(qIdx, 'hint', e.target.value)}
+                                                            placeholder="Enter optional hint for students..."
+                                                            className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#06B6D4]" 
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase flex items-center gap-1">
+                                                            <Sparkles size={12} className="text-cyan-400" /> Answer Explanation (Optional)
+                                                        </label>
+                                                        <textarea 
+                                                            rows={2}
+                                                            value={q.explanation || ''}
+                                                            onChange={(e) => updateQuizQuestion(qIdx, 'explanation', e.target.value)}
+                                                            placeholder="Enter explanation shown to students after answering..."
+                                                            className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#06B6D4]" 
+                                                        />
                                                     </div>
                                                 </div>
-
-                                                <div>
-                                                    <label className="block text-[11px] font-semibold text-gray-400 mb-1 uppercase">Correct Choice</label>
-                                                    <select 
-                                                        value={q.correctIndex ?? 0}
-                                                        onChange={(e) => updateQuizQuestion(qIdx, 'correctIndex', e.target.value)}
-                                                        className="w-full bg-gray-900 border border-[#1f2937] rounded-lg p-2 text-xs text-white focus:outline-none focus:border-[#06B6D4]"
-                                                    >
-                                                        <option value="0">Option A: {q.options?.[0] || 'Empty'}</option>
-                                                        <option value="1">Option B: {q.options?.[1] || 'Empty'}</option>
-                                                        <option value="2">Option C: {q.options?.[2] || 'Empty'}</option>
-                                                        <option value="3">Option D: {q.options?.[3] || 'Empty'}</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
 
                                         <button
                                             type="button"
                                             onClick={addQuizQuestion}
-                                            className="w-full py-3 bg-[#111827] hover:bg-[#1f2937] border border-dashed border-[#06B6D4]/50 hover:border-[#06B6D4] text-[#06B6D4] font-bold text-xs rounded-xl transition flex items-center justify-center gap-2"
+                                            className="w-full py-3 bg-[#111827] hover:bg-[#1f2937] border border-dashed border-[#06B6D4]/50 hover:border-[#06B6D4] text-[#06B6D4] font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
                                         >
                                             <PlusCircle size={15} />
                                             <span>Add Another Question</span>

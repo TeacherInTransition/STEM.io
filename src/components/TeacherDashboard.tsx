@@ -74,20 +74,36 @@ export default function TeacherDashboard({ user, accessToken }: { user: User; ac
     }
     
     // Fetch users & strictly filter out teachers and admins
-    const q = query(collection(db, 'users'));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const studentList: User[] = [];
-      snap.forEach(docSnap => {
-        const data = docSnap.data();
-        const isTeacherOrAdmin = data.role === 'teacher' || data.isAdmin === true || data.email === 'laankanom2018@gmail.com';
-        if (!isTeacherOrAdmin && (data.role === 'student' || !data.role)) {
-          studentList.push({ id: docSnap.id, ...data } as User);
+    let unsubscribe = () => {};
+    try {
+      const q = query(collection(db, 'users'));
+      unsubscribe = onSnapshot(q, (snap) => {
+        const studentList: User[] = [];
+        snap.forEach(docSnap => {
+          const data = docSnap.data();
+          const isTeacherOrAdmin = data.role === 'teacher' || data.isAdmin === true || data.email === 'laankanom2018@gmail.com';
+          if (!isTeacherOrAdmin && (data.role === 'student' || !data.role)) {
+            studentList.push({ id: docSnap.id, ...data } as User);
+          }
+        });
+        setStudents(studentList);
+        try {
+          localStorage.setItem('stemio_cached_students', JSON.stringify(studentList));
+        } catch (e) {}
+      }, (error) => {
+        console.warn('Snapshot notice for users (using local cache if quota exceeded):', error?.message || error);
+        const cached = localStorage.getItem('stemio_cached_students');
+        if (cached) {
+          try { setStudents(JSON.parse(cached)); } catch (e) {}
         }
       });
-      setStudents(studentList);
-    }, (error) => {
-      console.error('Snapshot error for users:', error);
-    });
+    } catch (e: any) {
+      console.warn('Could not attach users snapshot listener:', e?.message || e);
+      const cached = localStorage.getItem('stemio_cached_students');
+      if (cached) {
+        try { setStudents(JSON.parse(cached)); } catch (err) {}
+      }
+    }
 
     // Load real resources & resource opens from Firestore
     const loadRealAnalytics = async () => {

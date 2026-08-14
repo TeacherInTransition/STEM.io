@@ -26,6 +26,7 @@ export interface MasterLesson {
     duration: string;
     prompt: string;
   };
+  quiz?: any[];
 }
 
 export interface UnitMasterPlan {
@@ -36,6 +37,79 @@ export interface UnitMasterPlan {
   curriculumAlignment: string;
   lessons: MasterLesson[];
 }
+
+export const UPDATED_PROBLEM_SOLVING_AI_QUIZ = [
+  {
+    question: "Question 1: Defining Artificial Intelligence (AI)\nWhat is the correct definition of artificial intelligence (AI) as explored in our lesson and Unit Guide [Problem Solving with AI Unit Guide.pdf]?",
+    options: [
+      "A. A physical robotic machine that has human-like feelings, consciousness, and independent memory.",
+      "B. A technology that mimics human intelligence, performing tasks such as understanding language, recognizing patterns, and making decisions.",
+      "C. A computer hardware component that manually runs logic instructions without utilizing data.",
+      "D. A digital search engine that can only find and display pre-written web links from the internet.",
+      "E. A software program built exclusively to generate musical beats and audio files in a recording studio."
+    ],
+    correctIndex: 1,
+    correctAnswer: 1,
+    explanation: "AI refers to technology that mimics human intelligence, performing tasks such as understanding language, recognizing patterns, and making decisions.",
+    hint: "Focus on technology that mimics human capabilities like language understanding and pattern recognition."
+  },
+  {
+    question: "Question 2: Understanding Next-Token Probability\nWhen a chatbot predicts the next word in a sentence (such as completing the phrase \"The dog barked at the...\"), what mechanism is it primarily using to decide the output [Problem-Solving-with-AI.pdf]?",
+    options: [
+      "A. It uses connected camera sensors to see what is physically happening in the classroom.",
+      "B. It calculates the statistical likelihood, or probability, that a specific word should follow the preceding text based on patterns in its training data.",
+      "C. It logically reasons and understands the real-world physical relationship between a dog and a mailman.",
+      "D. It searches its operating system to find a single, hardcoded rule that forces it to choose \"mailman.\"",
+      "E. It picks a completely random word from the dictionary without analyzing the preceding words in the prompt."
+    ],
+    correctIndex: 1,
+    correctAnswer: 1,
+    explanation: "Chatbots predict the next token by calculating statistical likelihoods from patterns in training data.",
+    hint: "Recall statistical likelihoods and probabilities based on training data."
+  },
+  {
+    question: "Question 3: The Role of a Prompt and the Iteration Loop\nWhich of the following best describes a prompt and the \"Golden Rule\" of prompt engineering we practiced in our Code.org sandbox [Problem-Solving-with-AI.pdf]?",
+    options: [
+      "A. An automatic security warning that alerts you when a virus is attempting to access your laptop files.",
+      "B. A physical connection cord used to link your computer keyboard to an external monitor screen.",
+      "C. A hidden programming code that students are locked out from editing or viewing during class.",
+      "D. A question, instruction, scenario, or statement provided by the user to guide the AI's response, which should be refined through at least three back-and-forth interactions.",
+      "E. A short, single-word search term that can never be modified or expanded once it is sent to the chatbot."
+    ],
+    correctIndex: 3,
+    correctAnswer: 3,
+    explanation: "A prompt guides the AI response and should be refined iteratively through back-and-forth interactions.",
+    hint: "Look for user guidance and iterative back-and-forth refinement."
+  },
+  {
+    question: "Question 4: Analyzing the Giant \"Key on the Table\" Error\nWhen an image generator draws a giant, car-sized key sitting awkwardly on top of a tiny table because of the prompt \"a key on the table,\" what does this error prove about how AI processes data [Problem-Solving-with-AI.pdf]?",
+    options: [
+      "A. The AI focused on the important key nouns (abstraction) but failed to consider physical scale and context, proving it relies on probability patterns rather than actual logic.",
+      "B. The user’s laptop screen was corrupted, which caused a temporary display layout error in the browser.",
+      "C. The system ran out of cloud storage space, forcing it to compress the scale of the table to fit the screen.",
+      "D. An engineer manually hardcoded the model to always render keys larger than tables as a safety limit.",
+      "E. The AI used deep learning backpropagation to intentionally trick the user as a creative joke."
+    ],
+    correctIndex: 0,
+    correctAnswer: 0,
+    explanation: "The AI abstracts key nouns but lacks true physical scale or contextual reasoning.",
+    hint: "The AI isolates key nouns (abstraction) without genuine scale/context logic."
+  },
+  {
+    question: "Question 5: The Definition of Abstraction\nWhich of the following is the exact definition of abstraction as used in computational thinking and AI design [Problem Solving with AI Unit Guide.pdf]?",
+    options: [
+      "A. Focusing on the important information and ignoring irrelevant details.",
+      "B. Counting the exact mathematical coordinates of pixels in a high-resolution color photo.",
+      "C. Creating a backup copy of a computer's operating system in case of hardware failure.",
+      "D. Writing an essay using complex academic terms to make a chatbot sound highly professional.",
+      "E. Training a computer system to run multiple physical server stacks simultaneously without overheating."
+    ],
+    correctIndex: 0,
+    correctAnswer: 0,
+    explanation: "Abstraction in computational thinking means focusing on essential details and ignoring irrelevant information.",
+    hint: "Filtering out irrelevant noise to focus on key information."
+  }
+];
 
 export const UNIT_1_MASTER_PLAN: UnitMasterPlan = {
   unitId: "u1",
@@ -71,7 +145,8 @@ export const UNIT_1_MASTER_PLAN: UnitMasterPlan = {
         title: "The Probability Space",
         duration: "5 min",
         prompt: '"How do input prompt constraints mathematically reduce the search space of the AI\'s probability engine? Use examples from the gift prompting activity."'
-      }
+      },
+      quiz: UPDATED_PROBLEM_SOLVING_AI_QUIZ
     },
     {
       id: "u1_l2",
@@ -394,3 +469,4 @@ export const UNIT_1_MASTER_PLAN: UnitMasterPlan = {
     }
   ]
 };
+

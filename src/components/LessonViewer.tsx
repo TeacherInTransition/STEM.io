@@ -3,7 +3,7 @@ import { db, awardStemios, recordResourceOpen } from '../lib/firebase';
 import { User } from '../types';
 import { doc, getDoc } from 'firebase/firestore';
 import { ArrowLeft, ChevronRight, ChevronLeft, CheckCircle, Maximize2, Minimize2, Sparkles, Lightbulb, Paperclip, FileText, Download, ExternalLink, Video, Globe, Play, X, HelpCircle } from 'lucide-react';
-import { UNIT_1_MASTER_PLAN } from '../data/unitMasterPlans';
+import { UNIT_1_MASTER_PLAN, UPDATED_PROBLEM_SOLVING_AI_QUIZ } from '../data/unitMasterPlans';
 import { aiFoundationsCurriculum } from '../aiFoundationsData';
 
 function findStaticLesson(lessonId: string) {
@@ -75,32 +75,7 @@ function findStaticLesson(lessonId: string) {
           ]
         }
       ],
-      quiz: [
-        {
-          question: `What primary concept is introduced in Lesson ${master.lessonNumber} (${master.title})?`,
-          options: [
-            master.concepts.split(',')[0] || "AI Foundations & Prompt Engineering",
-            "Manual binary disk formatting",
-            "Analog radio signal soldering",
-            "Uncalibrated tape storage backup"
-          ],
-          correctAnswer: 0,
-          explanation: `Lesson ${master.lessonNumber} focuses on ${master.concepts}.`,
-          hint: `Recall the core topic: ${master.concepts.split(',')[0] || master.title}.`
-        },
-        {
-          question: `How should students approach the collaborative activity in this lesson?`,
-          options: [
-            "By actively testing prompts, evaluating outputs, and applying human-in-the-loop verification.",
-            "By blindly copying responses without checking for accuracy or bias.",
-            "By skipping the exit ticket and avoiding team collaboration.",
-            "By ignoring curriculum standards and guidelines."
-          ],
-          correctAnswer: 0,
-          explanation: "Iterative testing and critical verification are essential for responsible AI co-creation.",
-          hint: "Select the option that emphasizes structured practice and human verification."
-        }
-      ]
+      quiz: UPDATED_PROBLEM_SOLVING_AI_QUIZ
     };
   }
 
@@ -509,25 +484,56 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const slideRef = useRef<HTMLDivElement>(null);
 
+  const handleOptionSelect = (qIdx: number, optIdx: number, quizList: any[]) => {
+    if (submitted) return;
+    setSelectedAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
+    
+    // Auto-advance to next question after 1.2 seconds highlight
+    setTimeout(() => {
+      if (qIdx < quizList.length - 1) {
+        setActiveQuizIndex(prev => Math.min(quizList.length - 1, prev + 1));
+      }
+    }, 1200);
+  };
+
   useEffect(() => {
     const fetchLesson = async () => {
       try {
         const docRef = doc(db, 'lessons', lessonId);
         const docSnap = await getDoc(docRef);
+        let loaded: any = null;
         if (docSnap.exists()) {
-          setLesson({ id: docSnap.id, ...docSnap.data() });
+          loaded = { id: docSnap.id, ...docSnap.data() };
         } else {
-          const staticLesson = findStaticLesson(lessonId);
-          if (staticLesson) {
-            setLesson(staticLesson);
-          } else {
-            console.error("Lesson not found!");
+          loaded = findStaticLesson(lessonId);
+        }
+
+        const clean = (lessonId || '').trim().toLowerCase();
+        const isLesson1 = 
+          clean === 'u1_l1' || 
+          clean === 'l1' || 
+          clean === '1' || 
+          clean === 'u1' || 
+          clean === 'unit1' || 
+          clean === 'unit-1' || 
+          clean === 'lesson-1' || 
+          clean === 'lesson_1' ||
+          loaded?.id === 'u1_l1' ||
+          loaded?.lessonTitle?.toLowerCase().includes('talking to machines');
+
+        if (loaded) {
+          if (!loaded.quiz || loaded.quiz.length === 0) {
+            loaded.quiz = UPDATED_PROBLEM_SOLVING_AI_QUIZ;
           }
+          setLesson(loaded);
+        } else {
+          console.error("Lesson not found!");
         }
       } catch (e) {
         console.error("Error fetching lesson:", e);
         const staticLesson = findStaticLesson(lessonId);
         if (staticLesson) {
+          staticLesson.quiz = UPDATED_PROBLEM_SOLVING_AI_QUIZ;
           setLesson(staticLesson);
         }
       } finally {
@@ -653,16 +659,51 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
     <div className="flex flex-col min-h-screen bg-[var(--paper)] text-[var(--ink)] font-sans">
       <header className="flex items-center justify-between px-6 py-4 bg-[var(--paper-2)] border-b border-[var(--line)] shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="text-[var(--muted)] hover:text-[var(--amber)] transition-colors" title="Back">
+          <button onClick={onBack} className="text-[var(--muted)] hover:text-[var(--amber)] transition-colors cursor-pointer" title="Back">
             <ArrowLeft size={24} />
           </button>
           <div>
             <h1 className="text-xl font-bold">{lesson?.lessonTitle || 'Lesson'}</h1>
             <p className="text-xs text-[var(--muted)] font-mono">
-              {slides.length > 0 ? `${slides.length} slides` : 'Interactive Lesson'}
+              {slides.length > 0 ? `Slide ${currentStepNumber} of ${slides.length}` : 'Interactive Lesson'}
             </p>
           </div>
         </div>
+
+        {/* Top Header Quick Navigation Buttons */}
+        {slides.length > 0 && (
+          <div className="flex items-center gap-2">
+            <button
+              disabled={currentSlide === 0}
+              onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
+              className="px-3.5 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--paper)] hover:bg-[var(--surface)] text-xs font-bold disabled:opacity-30 transition-all flex items-center gap-1 cursor-pointer"
+              title="Previous Slide"
+            >
+              <ChevronLeft size={16} />
+              <span className="hidden sm:inline">Prev</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentSlide < slides.length - 1) {
+                  setCurrentSlide(prev => prev + 1);
+                } else {
+                  const quizElem = document.getElementById('lesson-quiz-section');
+                  if (quizElem) {
+                    quizElem.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    setCurrentSlide(slides.length);
+                  }
+                }
+              }}
+              className="px-4 py-1.5 rounded-lg bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Next Slide"
+            >
+              <span>{currentSlide < slides.length - 1 ? 'Next Slide' : 'Quiz ↓'}</span>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="flex-1 overflow-auto p-6 md:p-12 flex flex-col items-center">
@@ -675,48 +716,93 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
             }`}
           >
             {/* Top Slide Control Bar */}
-            <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-[var(--line)]/60">
-              <span className="text-xs font-semibold text-[var(--amber)] font-mono uppercase tracking-wider">
-                Slide {currentSlide + 1} of {slides.length}
-              </span>
+            <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-[var(--line)]/60 gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[var(--amber)] font-mono uppercase tracking-wider bg-[var(--paper-2)] px-2.5 py-1 rounded-md border border-[var(--line)]">
+                  Slide {currentSlide + 1} of {slides.length}
+                </span>
+              </div>
 
-              {/* Fullscreen Toggle Button specifically for slides */}
-              <button
-                onClick={toggleFullscreen}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--paper-2)] hover:bg-[var(--surface)] text-[var(--ink)] text-xs font-semibold transition-colors shadow-sm"
-                title={isFullscreen ? "Exit Slide Fullscreen" : "Slide Fullscreen Mode"}
-              >
-                {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                <span>{isFullscreen ? "Exit Fullscreen" : "Slide Fullscreen"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentSlide === 0}
+                  onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--paper-2)] hover:bg-[var(--surface)] text-[var(--ink)] text-xs font-bold transition-all disabled:opacity-30 cursor-pointer"
+                  title="Previous Slide"
+                >
+                  <ChevronLeft size={15} />
+                  <span>Prev</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentSlide < slides.length - 1) {
+                      setCurrentSlide(prev => prev + 1);
+                    } else {
+                      const quizElem = document.getElementById('lesson-quiz-section');
+                      if (quizElem) {
+                        quizElem.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        setCurrentSlide(slides.length);
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#B45309] hover:bg-[#92400E] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                  title="Next Slide"
+                >
+                  <span>{currentSlide < slides.length - 1 ? 'Next Slide' : 'Go to Quiz ↓'}</span>
+                  <ChevronRight size={15} />
+                </button>
+
+                {/* Fullscreen Toggle Button specifically for slides */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--paper-2)] hover:bg-[var(--surface)] text-[var(--ink)] text-xs font-semibold transition-colors shadow-sm cursor-pointer ml-1"
+                  title={isFullscreen ? "Exit Slide Fullscreen" : "Slide Fullscreen Mode"}
+                >
+                  {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  <span className="hidden md:inline">{isFullscreen ? "Exit Fullscreen" : "Fullscreen"}</span>
+                </button>
+              </div>
             </div>
 
-            {/* Left and Right Side Click Zones for Slide Navigation */}
+            {/* Left and Right Side Navigation Buttons */}
             <button
               disabled={currentSlide === 0}
               onClick={(e) => {
                 e.stopPropagation();
                 setCurrentSlide(prev => Math.max(0, prev - 1));
               }}
-              className="absolute left-0 top-16 bottom-16 w-20 flex items-center justify-start pl-2 z-10 group opacity-0 hover:opacity-100 transition-opacity disabled:pointer-events-none cursor-pointer"
-              title="Click or press ← to go back"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 group disabled:opacity-20 disabled:pointer-events-none cursor-pointer"
+              title="Previous Slide (←)"
             >
-              <div className="w-10 h-10 rounded-full bg-[var(--paper-2)]/90 backdrop-blur border border-[var(--line)] flex items-center justify-center text-[var(--ink)] shadow-md group-hover:scale-110 transition-transform">
-                <ChevronLeft size={24} />
+              <div className="px-3 py-2 rounded-full bg-white/95 hover:bg-white text-gray-900 border border-gray-300 flex items-center gap-1 shadow-xl group-hover:scale-105 transition-transform font-bold text-xs">
+                <ChevronLeft size={18} />
+                <span className="hidden sm:inline">Prev</span>
               </div>
             </button>
 
             <button
-              disabled={currentSlide >= slides.length}
               onClick={(e) => {
                 e.stopPropagation();
-                setCurrentSlide(prev => Math.min(slides.length, prev + 1));
+                if (currentSlide < slides.length - 1) {
+                  setCurrentSlide(prev => prev + 1);
+                } else {
+                  const quizElem = document.getElementById('lesson-quiz-section');
+                  if (quizElem) {
+                    quizElem.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    setCurrentSlide(slides.length);
+                  }
+                }
               }}
-              className="absolute right-0 top-16 bottom-16 w-20 flex items-center justify-end pr-2 z-10 group opacity-0 hover:opacity-100 transition-opacity disabled:pointer-events-none cursor-pointer"
-              title="Click or press → to move forward"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 group cursor-pointer"
+              title={currentSlide < slides.length - 1 ? "Next Slide (→)" : "Go to Quiz"}
             >
-              <div className="w-10 h-10 rounded-full bg-[var(--amber)] text-white border border-amber-600 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                <ChevronRight size={24} />
+              <div className="px-3.5 py-2 rounded-full bg-[#B45309] hover:bg-[#92400E] text-white border border-amber-600 flex items-center gap-1.5 shadow-xl group-hover:scale-105 transition-transform font-bold text-xs">
+                <span>Next</span>
+                <ChevronRight size={18} />
               </div>
             </button>
 
@@ -781,54 +867,102 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
             )}
                  
 
-            {/* In-Slide Navigation when Fullscreen */}
-            {isFullscreen && (
-              <div className="w-full mt-6 pt-4 border-t border-[var(--line)]/60 flex items-center justify-between">
-                <button 
-                  disabled={currentSlide === 0}
-                  onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--paper-2)] hover:bg-[var(--surface)] rounded-xl border border-[var(--line)] text-sm font-semibold disabled:opacity-40 transition-all"
-                >
-                  <ChevronLeft size={18} /> Previous
-                </button>
-                <span className="text-xs font-mono text-[var(--muted)] font-bold">
-                  {progressPercent}% Completed
-                </span>
-                <button 
-                  disabled={currentSlide >= slides.length}
-                  onClick={() => setCurrentSlide(prev => Math.min(slides.length, prev + 1))}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--amber)] hover:bg-amber-600 text-white rounded-xl text-sm font-semibold disabled:opacity-40 transition-all"
-                >
-                  Next <ChevronRight size={18} />
-                </button>
+            {/* In-Slide Bottom Navigation Controls Bar */}
+            <div className="w-full mt-8 pt-5 border-t border-[var(--line)]/60 flex flex-wrap items-center justify-between gap-3">
+              <button 
+                disabled={currentSlide === 0}
+                onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--paper-2)] hover:bg-[var(--surface)] text-[var(--ink)] rounded-xl border border-[var(--line)] text-sm font-bold disabled:opacity-30 transition-all cursor-pointer shadow-xs"
+              >
+                <ChevronLeft size={18} />
+                <span>Previous Slide</span>
+              </button>
+
+              {/* Interactive Slide Indicator Dots */}
+              <div className="flex items-center gap-1.5 py-1 px-3 bg-[var(--paper-2)] rounded-full border border-[var(--line)]/50">
+                {slides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`h-2.5 rounded-full transition-all cursor-pointer ${
+                      idx === currentSlide ? 'bg-[#B45309] w-6' : 'bg-[var(--line)] hover:bg-gray-400 w-2.5'
+                    }`}
+                    title={`Jump to Slide ${idx + 1}`}
+                  />
+                ))}
               </div>
-            )}
+
+              <button 
+                type="button"
+                onClick={() => {
+                  if (currentSlide < slides.length - 1) {
+                    setCurrentSlide(prev => prev + 1);
+                  } else {
+                    const quizElem = document.getElementById('lesson-quiz-section');
+                    if (quizElem) {
+                      quizElem.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      setCurrentSlide(slides.length);
+                    }
+                  }
+                }}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer"
+              >
+                <span>{currentSlide < slides.length - 1 ? 'Next Slide' : 'Next: Lesson Quiz ↓'}</span>
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         )}
 
         {currentSlide === slides.length && (
-          <div className="w-full max-w-4xl flex flex-col items-center gap-8">
+          <div className="w-full max-w-4xl flex flex-col items-center gap-6 bg-[var(--surface)] p-8 rounded-[24px] border border-[var(--line)] shadow-sm">
             {lesson?.media?.videoUrl && (
-              <div className="w-full bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-8 flex flex-col items-center shadow-sm">
+              <div className="w-full flex flex-col items-center">
                 <h2 className="text-2xl font-bold mb-6 text-center">Video Resource</h2>
                 <iframe 
                   src={lesson.media.videoUrl} 
-                  className="w-full aspect-video rounded-xl"
+                  className="w-full aspect-video rounded-xl shadow-sm"
                   frameBorder="0" 
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                   allowFullScreen
                 ></iframe>
               </div>
             )}
-            <div className="text-xl font-bold flex items-center gap-2 text-[var(--amber)]">
-              <Sparkles size={24} /> Lesson Slides Completed!
+            <div className="text-2xl font-bold flex items-center gap-2 text-[#B45309]">
+              <Sparkles size={26} /> All Lesson Slides Completed!
+            </div>
+            <p className="text-sm text-[var(--muted)] text-center max-w-md">
+              Great job going through the material. You can review the slides anytime or continue to the checkpoint quiz below.
+            </p>
+            <div className="flex items-center gap-3 mt-2 flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => setCurrentSlide(0)}
+                className="px-5 py-2.5 bg-[var(--paper-2)] hover:bg-[var(--surface)] text-[var(--ink)] font-bold text-sm rounded-xl border border-[var(--line)] transition cursor-pointer"
+              >
+                ↺ Review Slides (Slide 1)
+              </button>
+              {quiz.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const quizElem = document.getElementById('lesson-quiz-section');
+                    if (quizElem) quizElem.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="px-6 py-2.5 bg-[#B45309] hover:bg-[#92400E] text-white font-bold text-sm rounded-xl shadow-md transition cursor-pointer flex items-center gap-2"
+                >
+                  <span>Take Checkpoint Quiz ↓</span>
+                </button>
+              )}
             </div>
           </div>
         )}
 
         {/* Lesson Check-Up Quiz Section - ALWAYS positioned at the bottom of the center container below the slide */}
         {quiz.length > 0 && (
-          <div className="w-full max-w-4xl bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-6 md:p-8 flex flex-col shadow-sm mt-8">
+          <div id="lesson-quiz-section" className="w-full max-w-4xl bg-[var(--surface)] rounded-[24px] border border-[var(--line)] p-6 md:p-8 flex flex-col shadow-sm mt-8">
             {/* Header with Pop-up button */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[var(--line)]">
               <div>
@@ -865,8 +999,10 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
               </span>
               {quiz.map((q: any, qIdx: number) => {
                 const isSelected = activeQuizIndex === qIdx;
-                const isAnswered = selectedAnswers[qIdx] !== undefined;
-                const isCorrect = submitted && selectedAnswers[qIdx] === q.correctIndex;
+                const userSelectedOpt = selectedAnswers[qIdx];
+                const isAnswered = userSelectedOpt !== undefined;
+                const targetCorrect = q.correctIndex ?? q.correctAnswer;
+                const isCorrect = userSelectedOpt === targetCorrect;
 
                 return (
                   <button
@@ -876,18 +1012,17 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                       isSelected
                         ? 'bg-[var(--amber)] text-white border-amber-600 shadow-sm'
                         : isAnswered
-                        ? 'bg-[var(--paper-2)] text-[var(--ink)] border-[var(--amber)]/50'
+                        ? isCorrect
+                          ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/50'
+                          : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border-rose-500/50'
                         : 'bg-[var(--paper-2)] text-[var(--muted)] border-[var(--line)] hover:text-[var(--ink)]'
                     }`}
                   >
                     <span>Question {qIdx + 1}</span>
-                    {submitted && (
-                      <span className="text-[10px] font-black">
+                    {isAnswered && (
+                      <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
                         {isCorrect ? '✓' : '✕'}
                       </span>
-                    )}
-                    {!submitted && isAnswered && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--amber)]"></span>
                     )}
                   </button>
                 );
@@ -899,9 +1034,9 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
               <div className="w-full bg-[var(--paper-2)] p-5 md:p-6 rounded-2xl border border-[var(--line)] space-y-4 shadow-sm">
                 <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] uppercase tracking-wider font-bold">
                   <span>Question {activeQuizIndex + 1} of {quiz.length}</span>
-                  {submitted && (
-                    <span className={selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
-                      {selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "✓ Correct" : "✕ Incorrect"}
+                  {selectedAnswers[activeQuizIndex] !== undefined && (
+                    <span className={selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-rose-600 font-bold flex items-center gap-1"}>
+                      {selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? "✓ Correct" : "✕ Incorrect"}
                     </span>
                   )}
                 </div>
@@ -912,47 +1047,71 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
 
                 <div className="w-full flex flex-col gap-2.5">
                   {(quiz[activeQuizIndex].options || []).map((opt: string, optIdx: number) => {
-                    const isSelected = selectedAnswers[activeQuizIndex] === optIdx;
-                    let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)]";
+                    const userSelectedOpt = selectedAnswers[activeQuizIndex];
+                    const isQuestionAnswered = userSelectedOpt !== undefined;
+                    const isSelected = userSelectedOpt === optIdx;
+                    const targetCorrect = quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer;
+                    const isTargetCorrect = optIdx === targetCorrect;
 
-                    if (submitted) {
-                      if (optIdx === quiz[activeQuizIndex].correctIndex) {
-                        btnStyle = "bg-emerald-500/15 border-emerald-500 text-emerald-800 font-bold shadow-sm";
-                      } else if (isSelected && optIdx !== quiz[activeQuizIndex].correctIndex) {
-                        btnStyle = "bg-rose-500/15 border-rose-500 text-rose-800 font-medium";
+                    let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--amber)]";
+                    let badge = null;
+
+                    if (isQuestionAnswered || submitted) {
+                      if (isTargetCorrect) {
+                        btnStyle = "bg-emerald-500/20 border-emerald-500 text-emerald-900 dark:text-emerald-100 font-bold shadow-md ring-2 ring-emerald-500/30 transition-all duration-300 transform scale-[1.005]";
+                        badge = (
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0 animate-in fade-in">
+                            ✓ Correct Choice
+                          </span>
+                        );
+                      } else if (isSelected) {
+                        btnStyle = "bg-rose-500/20 border-rose-500 text-rose-900 dark:text-rose-100 font-semibold shadow-xs ring-2 ring-rose-500/30 transition-all duration-300";
+                        badge = (
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0 animate-in fade-in">
+                            ✕ Incorrect
+                          </span>
+                        );
                       } else {
                         btnStyle = "bg-[var(--surface)] text-[var(--muted)] opacity-50 border-[var(--line)]";
                       }
-                    } else if (isSelected) {
-                      btnStyle = "bg-amber-500/15 border-[var(--amber)] text-[var(--ink)] font-bold shadow-sm";
                     }
 
                     return (
                       <button
                         key={optIdx}
                         disabled={submitted}
-                        onClick={() => {
-                          if (!submitted) {
-                            setSelectedAnswers(prev => ({ ...prev, [activeQuizIndex]: optIdx }));
-                          }
-                        }}
-                        className={`w-full py-3 px-4 text-left text-sm rounded-xl transition-all border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
+                        onClick={() => handleOptionSelect(activeQuizIndex, optIdx, quiz)}
+                        className={`w-full py-3.5 px-4 text-left text-sm rounded-xl transition-all border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
                       >
-                        <span>{opt}</span>
-                        {submitted && optIdx === quiz[activeQuizIndex].correctIndex && (
-                          <span className="text-emerald-600 text-[11px] font-bold uppercase tracking-wider">Correct Answer</span>
-                        )}
+                        <span className="pr-2">{opt}</span>
+                        {badge}
                       </button>
                     );
                   })}
                 </div>
+
+                {selectedAnswers[activeQuizIndex] !== undefined && quiz[activeQuizIndex].explanation && (
+                  <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 border transition-all animate-in fade-in duration-300 ${
+                    selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer)
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                      : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                  }`}>
+                    <Sparkles size={16} className={`shrink-0 mt-0.5 ${selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    <div>
+                      <strong className="block font-bold mb-0.5">
+                        {selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? '✓ Correct Explanation:' : '💡 Key Concept to Note:'}
+                      </strong>
+                      <span>{quiz[activeQuizIndex].explanation}</span>
+                    </div>
+                  </div>
+                )}
 
                 {quiz[activeQuizIndex].hint && (
                   <div className="pt-2 border-t border-[var(--line)]/50">
                     <button
                       type="button"
                       onClick={() => setShowHints(prev => ({ ...prev, [activeQuizIndex]: !prev[activeQuizIndex] }))}
-                      className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold transition"
+                      className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline font-semibold transition cursor-pointer"
                     >
                       <Lightbulb size={13} />
                       <span>{showHints[activeQuizIndex] ? "Hide Hint" : "Need a hint?"}</span>
@@ -1032,7 +1191,8 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                     }
                     let correctCount = 0;
                     quiz.forEach((q: any, idx: number) => {
-                      if (selectedAnswers[idx] === q.correctIndex) {
+                      const targetCorrect = q.correctIndex ?? q.correctAnswer;
+                      if (selectedAnswers[idx] === targetCorrect) {
                         correctCount++;
                       }
                     });
@@ -1084,8 +1244,10 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                 </span>
                 {quiz.map((q: any, qIdx: number) => {
                   const isSelected = activeQuizIndex === qIdx;
-                  const isAnswered = selectedAnswers[qIdx] !== undefined;
-                  const isCorrect = submitted && selectedAnswers[qIdx] === q.correctIndex;
+                  const userSelectedOpt = selectedAnswers[qIdx];
+                  const isAnswered = userSelectedOpt !== undefined;
+                  const targetCorrect = q.correctIndex ?? q.correctAnswer;
+                  const isCorrect = userSelectedOpt === targetCorrect;
 
                   return (
                     <button
@@ -1095,13 +1257,15 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                         isSelected
                           ? 'bg-[var(--amber)] text-white border-amber-600 shadow-sm'
                           : isAnswered
-                          ? 'bg-[var(--paper-2)] text-[var(--ink)] border-[var(--amber)]/50'
+                          ? isCorrect
+                            ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/50'
+                            : 'bg-rose-500/20 text-rose-800 dark:text-rose-300 border-rose-500/50'
                           : 'bg-[var(--paper-2)] text-[var(--muted)] border-[var(--line)] hover:text-[var(--ink)]'
                       }`}
                     >
                       <span>Question {qIdx + 1}</span>
-                      {submitted && (
-                        <span className="text-[10px] font-black">
+                      {isAnswered && (
+                        <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-md ${isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
                           {isCorrect ? '✓' : '✕'}
                         </span>
                       )}
@@ -1115,9 +1279,9 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                 <div className="w-full bg-[var(--paper-2)] p-5 rounded-2xl border border-[var(--line)] space-y-4">
                   <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] font-bold uppercase">
                     <span>Question {activeQuizIndex + 1} of {quiz.length}</span>
-                    {submitted && (
-                      <span className={selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
-                        {selectedAnswers[activeQuizIndex] === quiz[activeQuizIndex].correctIndex ? "✓ Correct" : "✕ Incorrect"}
+                    {selectedAnswers[activeQuizIndex] !== undefined && (
+                      <span className={selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-rose-600 font-bold flex items-center gap-1"}>
+                        {selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? "✓ Correct" : "✕ Incorrect"}
                       </span>
                     )}
                   </div>
@@ -1126,47 +1290,71 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
 
                   <div className="flex flex-col gap-2">
                     {(quiz[activeQuizIndex].options || []).map((opt: string, optIdx: number) => {
-                      const isSelected = selectedAnswers[activeQuizIndex] === optIdx;
-                      let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)]";
+                      const userSelectedOpt = selectedAnswers[activeQuizIndex];
+                      const isQuestionAnswered = userSelectedOpt !== undefined;
+                      const isSelected = userSelectedOpt === optIdx;
+                      const targetCorrect = quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer;
+                      const isTargetCorrect = optIdx === targetCorrect;
 
-                      if (submitted) {
-                        if (optIdx === quiz[activeQuizIndex].correctIndex) {
-                          btnStyle = "bg-emerald-500/15 border-emerald-500 text-emerald-800 font-bold shadow-sm";
-                        } else if (isSelected && optIdx !== quiz[activeQuizIndex].correctIndex) {
-                          btnStyle = "bg-rose-500/15 border-rose-500 text-rose-800 font-medium";
+                      let btnStyle = "bg-[var(--surface)] hover:bg-[var(--paper)] text-[var(--ink)] border-[var(--line)] hover:border-[var(--amber)]";
+                      let badge = null;
+
+                      if (isQuestionAnswered || submitted) {
+                        if (isTargetCorrect) {
+                          btnStyle = "bg-emerald-500/20 border-emerald-500 text-emerald-900 dark:text-emerald-100 font-bold shadow-md ring-2 ring-emerald-500/30 transition-all duration-300 transform scale-[1.005]";
+                          badge = (
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0 animate-in fade-in">
+                              ✓ Correct Choice
+                            </span>
+                          );
+                        } else if (isSelected) {
+                          btnStyle = "bg-rose-500/20 border-rose-500 text-rose-900 dark:text-rose-100 font-semibold shadow-xs ring-2 ring-rose-500/30 transition-all duration-300";
+                          badge = (
+                            <span className="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0 animate-in fade-in">
+                              ✕ Incorrect
+                            </span>
+                          );
                         } else {
                           btnStyle = "bg-[var(--surface)] text-[var(--muted)] opacity-50 border-[var(--line)]";
                         }
-                      } else if (isSelected) {
-                        btnStyle = "bg-amber-500/15 border-[var(--amber)] text-[var(--ink)] font-bold shadow-sm";
                       }
 
                       return (
                         <button
                           key={optIdx}
                           disabled={submitted}
-                          onClick={() => {
-                            if (!submitted) {
-                              setSelectedAnswers(prev => ({ ...prev, [activeQuizIndex]: optIdx }));
-                            }
-                          }}
-                          className={`w-full py-3 px-4 text-left text-sm rounded-xl transition border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
+                          onClick={() => handleOptionSelect(activeQuizIndex, optIdx, quiz)}
+                          className={`w-full py-3.5 px-4 text-left text-sm rounded-xl transition border font-medium flex items-center justify-between cursor-pointer ${btnStyle}`}
                         >
-                          <span>{opt}</span>
-                          {submitted && optIdx === quiz[activeQuizIndex].correctIndex && (
-                            <span className="text-emerald-600 text-[11px] font-bold uppercase">Correct</span>
-                          )}
+                          <span className="pr-2">{opt}</span>
+                          {badge}
                         </button>
                       );
                     })}
                   </div>
+
+                  {selectedAnswers[activeQuizIndex] !== undefined && quiz[activeQuizIndex].explanation && (
+                    <div className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 border transition-all animate-in fade-in duration-300 ${
+                      selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer)
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                        : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                    }`}>
+                      <Sparkles size={16} className={`shrink-0 mt-0.5 ${selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? 'text-emerald-600' : 'text-amber-600'}`} />
+                      <div>
+                        <strong className="block font-bold mb-0.5">
+                          {selectedAnswers[activeQuizIndex] === (quiz[activeQuizIndex].correctIndex ?? quiz[activeQuizIndex].correctAnswer) ? '✓ Correct Explanation:' : '💡 Key Concept to Note:'}
+                        </strong>
+                        <span>{quiz[activeQuizIndex].explanation}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {quiz[activeQuizIndex].hint && (
                     <div className="pt-2 border-t border-[var(--line)]/50">
                       <button
                         type="button"
                         onClick={() => setShowHints(prev => ({ ...prev, [activeQuizIndex]: !prev[activeQuizIndex] }))}
-                        className="inline-flex items-center gap-1.5 text-xs text-amber-600 hover:underline font-semibold"
+                        className="inline-flex items-center gap-1.5 text-xs text-amber-600 hover:underline font-semibold cursor-pointer"
                       >
                         <Lightbulb size={13} />
                         <span>{showHints[activeQuizIndex] ? "Hide Hint" : "Need a hint?"}</span>
@@ -1215,7 +1403,8 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                       }
                       let correctCount = 0;
                       quiz.forEach((q: any, idx: number) => {
-                        if (selectedAnswers[idx] === q.correctIndex) {
+                        const targetCorrect = q.correctIndex ?? q.correctAnswer;
+                        if (selectedAnswers[idx] === targetCorrect) {
                           correctCount++;
                         }
                       });

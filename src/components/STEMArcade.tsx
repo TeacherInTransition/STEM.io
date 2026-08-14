@@ -42,16 +42,36 @@ export default function STEMArcade({ user, onUnitSelect }: { user?: User, onUnit
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'lessons'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lessons = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setPublishedLessons(lessons);
-    }, (error) => {
-      console.error("Error fetching published lessons:", error);
-    });
+    let unsubscribe = () => {};
+    try {
+      const q = query(collection(db, 'lessons'), orderBy('createdAt', 'desc'));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const lessons = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setPublishedLessons(lessons);
+        try {
+          localStorage.setItem('stemio_published_lessons_cache', JSON.stringify(lessons));
+        } catch (e) {}
+      }, (error) => {
+        console.warn("Firestore listener notice (using local cache if quota exceeded):", error?.message || error);
+        const cached = localStorage.getItem('stemio_published_lessons_cache');
+        if (cached) {
+          try {
+            setPublishedLessons(JSON.parse(cached));
+          } catch (e) {}
+        }
+      });
+    } catch (e: any) {
+      console.warn("Could not attach published lessons listener:", e?.message || e);
+      const cached = localStorage.getItem('stemio_published_lessons_cache');
+      if (cached) {
+        try {
+          setPublishedLessons(JSON.parse(cached));
+        } catch (err) {}
+      }
+    }
     return () => unsubscribe();
   }, []);
 

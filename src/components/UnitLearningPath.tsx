@@ -33,16 +33,36 @@ export default function UnitLearningPath({ user, unitId, unitTitle, onBack, onLe
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'lessons'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lessons = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setCustomLessons(lessons);
-    }, (error) => {
-      console.error("Error fetching custom lessons in UnitLearningPath:", error);
-    });
+    let unsubscribe = () => {};
+    try {
+      const q = query(collection(db, 'lessons'), orderBy('createdAt', 'desc'));
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        const lessons = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCustomLessons(lessons);
+        try {
+          localStorage.setItem('stemio_published_lessons_cache', JSON.stringify(lessons));
+        } catch (e) {}
+      }, (error) => {
+        console.warn("Firestore custom lessons notice in UnitLearningPath (using local cache if quota exceeded):", error?.message || error);
+        const cached = localStorage.getItem('stemio_published_lessons_cache');
+        if (cached) {
+          try {
+            setCustomLessons(JSON.parse(cached));
+          } catch (e) {}
+        }
+      });
+    } catch (e: any) {
+      console.warn("Could not attach custom lessons listener in UnitLearningPath:", e?.message || e);
+      const cached = localStorage.getItem('stemio_published_lessons_cache');
+      if (cached) {
+        try {
+          setCustomLessons(JSON.parse(cached));
+        } catch (err) {}
+      }
+    }
     return () => unsubscribe();
   }, []);
 
