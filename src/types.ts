@@ -25,6 +25,18 @@ export interface VirtualClassroom {
   description?: string;
 }
 
+// Virtual Classroom Roster — backend contract for class grouping & progress tracking.
+// Firestore: classes/{classId}. See firestore.rules for access.
+export interface VirtualClassroom {
+  classId: string;
+  googleClassroomCourseId?: string;
+  name: string;
+  joinCode: string; // Shareable link identifier, e.g. "STEM-7A-42"
+  teacherId: string;
+  studentIds: string[]; // UIDs enrolled via /join/:joinCode
+  createdAt: string;
+}
+
 // Admin Live-Editing Runtime Engine Config
 export const CONFIG_FLAGS = {
   enableRedditAvatars: false,
