@@ -28,6 +28,11 @@ service cloud.firestore {
       allow read, write: if true; // Open for prototyping
     }
 
+    // Per-user completion history (read by roster progress view)
+    match /users/{userId}/completions/{completionId} {
+      allow read, write: if true; // Open for prototyping
+    }
+
     // Classroom Rules
     match /classes/{classId} {
       allow read, write: if true; // Open for prototyping
@@ -41,21 +46,6 @@ service cloud.firestore {
     // Lesson Rules
     match /lessons/{lessonId} {
       allow read, write: if true; // Open for prototyping
-    }
-
-    // Virtual Classroom Rules — schema-validated, join-by-code via arrayUnion
-    function isValidClass(data) {
-      return data.keys().hasAll(['classId', 'name', 'joinCode', 'teacherId', 'studentIds', 'createdAt']) &&
-             data.classId is string && data.classId.size() <= 128 &&
-             data.name is string && data.name.size() <= 200 &&
-             data.joinCode is string && data.joinCode.size() <= 32 &&
-             data.teacherId is string && data.teacherId.size() <= 128 &&
-             data.studentIds is list &&
-             data.createdAt is string;
-    }
-
-    match /classes/{classId} {
-      allow read, write: if true; // Open for prototyping (schema validated above)
     }
   }
 }
