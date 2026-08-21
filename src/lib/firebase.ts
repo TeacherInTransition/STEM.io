@@ -561,10 +561,10 @@ export const awardStemios = async (
   const currentUid = (userId && !userId.startsWith('guest_')) ? userId : auth.currentUser?.uid;
   if (currentUid && !currentUid.startsWith('guest_')) {
     try {
-      const completionRef = doc(db, 'users', currentUid, 'completions', unitOrLessonId);
-      const completionSnap = await getDoc(completionRef);
+      const userRef = doc(db, 'users', currentUid);
+      const userSnap = await getDoc(userRef);
 
-      if (completionSnap.exists()) {
+      if (userSnap.exists() && ((userSnap.data() as any).completedQuizzes ?? []).includes(unitOrLessonId)) {
         return { awarded: false, amount: 0, alreadyCompleted: true };
       }
 
@@ -577,17 +577,11 @@ export const awardStemios = async (
         timestamp: serverTimestamp()
       });
 
-      // Record completion in subcollection users/{uid}/completions/{unitId}
-      await setDoc(completionRef, {
-        unitId: unitOrLessonId,
-        reward: amount,
-        completedAt: serverTimestamp()
-      });
-
-      // Increment stemios balance on user root doc
-      const userRef = doc(db, 'users', currentUid);
+      // Record completion + increment balance atomically on the root user doc.
+      // (users/{uid}/completions subcollection is not allowed by live rules)
       await updateDoc(userRef, {
-        stemios: increment(amount)
+        stemios: increment(amount),
+        completedQuizzes: arrayUnion(unitOrLessonId)
       });
 
       return { awarded: true, amount, alreadyCompleted: false };

@@ -81,15 +81,8 @@ export function useUser(firebaseUser: FirebaseUser | null) {
         } else {
           const data = snap.data();
           
-          // Fetch completions from subcollection
-          let completedQuizzes: string[] = [];
-          try {
-            const completionsCol = collection(db, 'users', customUid!, 'completions');
-            const completionsSnap = await getDocs(completionsCol);
-            completedQuizzes = completionsSnap.docs.map(d => d.id);
-          } catch (e) {
-            console.warn('Error fetching completions subcollection:', e);
-          }
+          // completions live on the root user doc (subcollection not allowed by live rules)
+          const completedQuizzes: string[] = data.completedQuizzes ?? [];
 
           if (!active) return;
 
@@ -142,14 +135,8 @@ export function useUser(firebaseUser: FirebaseUser | null) {
             setDoc(userRef, { isAdmin: true, role: 'teacher' }, { merge: true }).catch(() => {});
           }
 
-          let completedQuizzes: string[] = [];
-          try {
-            const completionsCol = collection(db, 'users', customUid!, 'completions');
-            const completionsSnap = await getDocs(completionsCol);
-            completedQuizzes = completionsSnap.docs.map(d => d.id);
-          } catch (e) {
-            console.warn('Error fetching completions on snapshot:', e);
-          }
+          // completions live on the root user doc (subcollection not allowed by live rules)
+          const completedQuizzes: string[] = userData.completedQuizzes ?? [];
 
           if (!active) return;
 

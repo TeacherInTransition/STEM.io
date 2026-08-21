@@ -1200,7 +1200,7 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                     setSubmitted(true);
 
                     if (correctCount > 0) {
-                      const earnedStemios = Math.max(10, Math.round((correctCount / quiz.length) * 50));
+                      const earnedStemios = 50; // flat reward per completed lesson quiz
                       const res = await awardStemios(undefined, lessonId, earnedStemios);
                       setRewardOutcome(res);
                     } else {
@@ -1411,7 +1411,7 @@ export default function LessonViewer({ lessonId, onBack, user }: { lessonId: str
                       setScore(correctCount);
                       setSubmitted(true);
                       if (correctCount > 0) {
-                        const earnedStemios = Math.max(10, Math.round((correctCount / quiz.length) * 50));
+                        const earnedStemios = 50; // flat reward per completed lesson quiz
                         const res = await awardStemios(undefined, lessonId, earnedStemios);
                         setRewardOutcome(res);
                       } else {
